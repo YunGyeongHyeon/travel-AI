@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    border-color: var(--color-slate-200, #e2e8f0);
+  }
+  body {
+    background-color: #F1F5F9;
+    color: #0f172a;
+    font-family: 'Noto Sans KR', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Bento grid utility styling */
+.bento-card {
+  background-color: #ffffff;
+  border-radius: 32px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+.bento-card-indigo {
+  background-color: #4f46e5;
+  border-radius: 32px;
+  color: #ffffff;
+  box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.1);
+}
+
+/* Custom Leaflet popup adjustments */
+.leaflet-popup-content-wrapper {
+  border-radius: 1.25rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.5 !important;
+}
+
+.leaflet-container {
+  font-family: inherit !important;
+  background-color: #e2e8f0 !important;
+}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Print optimizations */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "AI 여행 일정 & 맛집 동선 플래너",
+  "description": "여행지, 일정, 예산, 테마(식도락, 힐링, 관광 등)를 입력하면 맛집, 최적 동선, 비용 분석 및 인터랙티브 지도 일정을 자동으로 생성해주는 맞춤형 여행 플래너",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
