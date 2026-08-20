@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { TripPlan } from "../types";
-import { Compass, Ticket, CheckSquare, ShieldAlert, CloudSun, Check, Sparkles } from "lucide-react";
+import { Compass, Ticket, CheckSquare, ShieldAlert, CloudSun, Check } from "lucide-react";
+import { Card } from "./ui";
 
 interface TravelTipsViewProps {
   trip: TripPlan;
@@ -34,7 +35,7 @@ export const TravelTipsView: React.FC<TravelTipsViewProps> = ({ trip }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Recommended Passes */}
         {tips?.recommendedPasses && (
-          <div className="bg-white rounded-[32px] p-6 sm:p-7 border border-slate-200 shadow-sm space-y-4">
+          <Card className="p-6 sm:p-7 space-y-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Ticket className="w-4 h-4" />
@@ -57,12 +58,12 @@ export const TravelTipsView: React.FC<TravelTipsViewProps> = ({ trip }) => {
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
         )}
 
         {/* Packing Checklist */}
         {tips?.packingEssentials && (
-          <div className="bg-white rounded-[32px] p-6 sm:p-7 border border-slate-200 shadow-sm space-y-4">
+          <Card className="p-6 sm:p-7 space-y-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <CheckSquare className="w-4 h-4" />
@@ -99,12 +100,12 @@ export const TravelTipsView: React.FC<TravelTipsViewProps> = ({ trip }) => {
                 );
               })}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Local Etiquette & Rules */}
         {tips?.localEtiquette && (
-          <div className="bg-white rounded-[32px] p-6 sm:p-7 border border-slate-200 shadow-sm space-y-4">
+          <Card className="p-6 sm:p-7 space-y-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
                 <ShieldAlert className="w-4 h-4" />
@@ -125,12 +126,12 @@ export const TravelTipsView: React.FC<TravelTipsViewProps> = ({ trip }) => {
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
         )}
 
         {/* Weather & Outfit Advice */}
         {tips?.weatherAdvice && (
-          <div className="bg-white rounded-[32px] p-6 sm:p-7 border border-slate-200 shadow-sm space-y-4">
+          <Card className="p-6 sm:p-7 space-y-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
                 <CloudSun className="w-4 h-4" />
@@ -143,7 +144,7 @@ export const TravelTipsView: React.FC<TravelTipsViewProps> = ({ trip }) => {
             <div className="p-4 bg-orange-50/50 rounded-2xl border border-orange-200/70 text-xs sm:text-sm text-slate-700 leading-relaxed">
               {tips.weatherAdvice}
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </div>

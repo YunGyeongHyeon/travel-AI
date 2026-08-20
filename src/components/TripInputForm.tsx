@@ -1,7 +1,19 @@
 import React, { useState } from "react";
-import { TravelRequest, TravelTheme, CompanionType, PaceType, TransportType } from "../types";
-import { THEME_CONFIG, COMPANION_CONFIG, PACE_CONFIG, TRANSPORT_CONFIG } from "../utils/formatters";
+import {
+  TravelRequest,
+  TravelTheme,
+  CompanionType,
+  PaceType,
+  TransportType,
+} from "../types";
+import {
+  THEME_CONFIG,
+  COMPANION_CONFIG,
+  PACE_CONFIG,
+  TRANSPORT_CONFIG,
+} from "../utils/formatters";
 import { PRESET_OPTIONS, PresetOption } from "../data/sampleTrips";
+import { Button, Card } from "./ui";
 import {
   Sparkles,
   MapPin,
@@ -41,18 +53,19 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
   onSubmit,
   onSelectPreset,
 }) => {
-  const [destination, setDestination] = useState("일본 오사카");
+  const [destination, setDestination] = useState("");
   const [durationNights, setDurationNights] = useState(2);
   const [durationDays, setDurationDays] = useState(3);
   const [budget, setBudget] = useState(1000000);
-  const [currency, setCurrency] = useState<"KRW" | "JPY" | "USD" | "EUR">("KRW");
+  const [currency, setCurrency] = useState<"KRW" | "JPY" | "USD" | "EUR">(
+    "KRW",
+  );
   const [themes, setThemes] = useState<TravelTheme[]>(["food", "hotplace"]);
   const [companions, setCompanions] = useState<CompanionType>("friends");
   const [pace, setPace] = useState<PaceType>("moderate");
-  const [transportPreference, setTransportPreference] = useState<TransportType>("public");
-  const [specialRequests, setSpecialRequests] = useState(
-    "오사카 대표 미식(라멘, 오코노미야키, 타코야키, 야키니쿠)과 우메다 공중정원 야경"
-  );
+  const [transportPreference, setTransportPreference] =
+    useState<TransportType>("public");
+  const [specialRequests, setSpecialRequests] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   const toggleTheme = (themeKey: TravelTheme) => {
@@ -61,7 +74,7 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
         ? prev.length > 1
           ? prev.filter((t) => t !== themeKey)
           : prev
-        : [...prev, themeKey]
+        : [...prev, themeKey],
     );
   };
 
@@ -89,7 +102,7 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200 shadow-sm space-y-8">
+    <Card className="p-6 sm:p-8 space-y-8">
       {/* Quick Presets Bar */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -97,12 +110,16 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
             <Flame className="w-4 h-4 text-orange-500" />
             <span>Curated Presets</span>
           </div>
-          <span className="text-xs text-slate-400">클릭 즉시 조건이 채워집니다</span>
+          <span className="text-xs text-slate-400">
+            클릭 즉시 조건이 채워집니다
+          </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {PRESET_OPTIONS.map((p) => {
-            const isSelected = destination === p.request.destination && durationNights === p.request.durationNights;
+            const isSelected =
+              destination === p.request.destination &&
+              durationNights === p.request.durationNights;
             return (
               <button
                 key={p.id}
@@ -128,8 +145,12 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                 <div className="text-[10px] font-bold text-orange-700 bg-orange-100 px-2 py-0.5 rounded inline-block mb-1">
                   {p.badge}
                 </div>
-                <div className="font-bold text-xs text-slate-900 line-clamp-1">{p.title}</div>
-                <div className="text-[11px] text-slate-500 line-clamp-1">{p.subtitle}</div>
+                <div className="font-bold text-xs text-slate-900 line-clamp-1">
+                  {p.title}
+                </div>
+                <div className="text-[11px] text-slate-500 line-clamp-1">
+                  {p.subtitle}
+                </div>
               </button>
             );
           })}
@@ -287,8 +308,12 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                   }`}
                 >
                   <div className="text-lg mb-1">{theme.icon}</div>
-                  <div className="text-xs font-bold leading-tight">{theme.label}</div>
-                  <div className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
+                  <div className="text-xs font-bold leading-tight">
+                    {theme.label}
+                  </div>
+                  <div
+                    className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? "text-slate-300" : "text-slate-500"}`}
+                  >
                     {theme.description}
                   </div>
                   {isSelected && (
@@ -310,7 +335,10 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 py-1 cursor-pointer"
           >
             <Sliders className="w-3.5 h-3.5 text-indigo-600" />
-            <span>동행자, 일정 페이스, 이동 수단 등 상세 옵션 {isAdvancedOpen ? "접기 ▲" : "펼치기 ▼"}</span>
+            <span>
+              동행자, 일정 페이스, 이동 수단 등 상세 옵션{" "}
+              {isAdvancedOpen ? "접기 ▲" : "펼치기 ▼"}
+            </span>
           </button>
 
           {isAdvancedOpen && (
@@ -322,25 +350,29 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                   <span>동행자 구성</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                  {(Object.keys(COMPANION_CONFIG) as CompanionType[]).map((compKey) => {
-                    const comp = COMPANION_CONFIG[compKey];
-                    const isSelected = companions === compKey;
-                    return (
-                      <button
-                        key={compKey}
-                        type="button"
-                        onClick={() => setCompanions(compKey)}
-                        className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-indigo-600 border-indigo-600 text-white font-bold"
-                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        <span className="text-base block mb-0.5">{comp.icon}</span>
-                        <span className="text-xs block">{comp.label}</span>
-                      </button>
-                    );
-                  })}
+                  {(Object.keys(COMPANION_CONFIG) as CompanionType[]).map(
+                    (compKey) => {
+                      const comp = COMPANION_CONFIG[compKey];
+                      const isSelected = companions === compKey;
+                      return (
+                        <button
+                          key={compKey}
+                          type="button"
+                          onClick={() => setCompanions(compKey)}
+                          className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-indigo-600 border-indigo-600 text-white font-bold"
+                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="text-base block mb-0.5">
+                            {comp.icon}
+                          </span>
+                          <span className="text-xs block">{comp.label}</span>
+                        </button>
+                      );
+                    },
+                  )}
                 </div>
               </div>
 
@@ -367,8 +399,12 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                               : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          <span className="text-xs font-bold block">{p.label}</span>
-                          <span className={`text-[10px] block mt-0.5 ${isSelected ? "text-orange-100" : "text-slate-400"}`}>
+                          <span className="text-xs font-bold block">
+                            {p.label}
+                          </span>
+                          <span
+                            className={`text-[10px] block mt-0.5 ${isSelected ? "text-orange-100" : "text-slate-400"}`}
+                          >
                             {p.desc}
                           </span>
                         </button>
@@ -384,24 +420,28 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                     <span>선호 이동 수단</span>
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {(Object.keys(TRANSPORT_CONFIG) as TransportType[]).map((transKey) => {
-                      const t = TRANSPORT_CONFIG[transKey];
-                      const isSelected = transportPreference === transKey;
-                      return (
-                        <button
-                          key={transKey}
-                          type="button"
-                          onClick={() => setTransportPreference(transKey)}
-                          className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
-                            isSelected
-                              ? "bg-slate-900 border-slate-900 text-white font-bold"
-                              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                          }`}
-                        >
-                          <span className="text-xs font-bold block">{t.label}</span>
-                        </button>
-                      );
-                    })}
+                    {(Object.keys(TRANSPORT_CONFIG) as TransportType[]).map(
+                      (transKey) => {
+                        const t = TRANSPORT_CONFIG[transKey];
+                        const isSelected = transportPreference === transKey;
+                        return (
+                          <button
+                            key={transKey}
+                            type="button"
+                            onClick={() => setTransportPreference(transKey)}
+                            className={`p-2.5 rounded-2xl border text-center transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-slate-900 border-slate-900 text-white font-bold"
+                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className="text-xs font-bold block">
+                              {t.label}
+                            </span>
+                          </button>
+                        );
+                      },
+                    )}
                   </div>
                 </div>
               </div>
@@ -423,12 +463,13 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
           )}
         </div>
 
-        {/* Submit Action Button */}
         <div className="pt-2">
-          <button
+          <Button
             type="submit"
+            variant="indigo"
+            size="lg"
             disabled={isLoading}
-            className="w-full py-4 px-6 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base shadow-lg shadow-indigo-100 transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full shadow-lg"
           >
             {isLoading ? (
               <>
@@ -438,13 +479,16 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
             ) : (
               <>
                 <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
-                <span>{destination} {durationNights}박 {durationDays}일 최적 일정 생성하기</span>
+                <span>
+                  {destination} {durationNights}박 {durationDays}일 최적 일정
+                  생성하기
+                </span>
                 <ChevronRight className="w-5 h-5" />
               </>
             )}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Card>
   );
 };
