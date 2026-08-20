@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { TripPlan } from "../types";
 import { DollarSign, PieChart, Sparkles, TrendingUp, Wallet, ArrowRightLeft, CheckCircle2 } from "lucide-react";
+import { Card } from "./ui";
 
 interface BudgetDetailViewProps {
   trip: TripPlan;
@@ -78,7 +79,7 @@ export const BudgetDetailView: React.FC<BudgetDetailViewProps> = ({ trip }) => {
       {/* Top Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Target Budget Card */}
-        <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-sm">
+        <Card className="rounded-[28px] p-6">
           <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
             <span>설정 목표 예산</span>
             <Wallet className="w-4 h-4 text-slate-400" />
@@ -89,10 +90,10 @@ export const BudgetDetailView: React.FC<BudgetDetailViewProps> = ({ trip }) => {
           <span className="text-xs text-slate-400 mt-1.5 block">
             {trip.durationSummary} 기준 총 예산
           </span>
-        </div>
+        </Card>
 
         {/* Estimated Spend Card */}
-        <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-sm">
+        <Card className="rounded-[28px] p-6">
           <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
             <span>AI 최적 예상 총액</span>
             <TrendingUp className="w-4 h-4 text-emerald-500" />
@@ -103,10 +104,10 @@ export const BudgetDetailView: React.FC<BudgetDetailViewProps> = ({ trip }) => {
           <span className="text-xs text-emerald-600 font-bold mt-1.5 block">
             예산의 {percentUsed}% 사용 (안정적 설계)
           </span>
-        </div>
+        </Card>
 
         {/* Remaining Surplus Card */}
-        <div className="bg-white rounded-[28px] p-6 border border-slate-200 shadow-sm">
+        <Card className="rounded-[28px] p-6">
           <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
             <span>남은 여유 비상금</span>
             <Sparkles className="w-4 h-4 text-orange-500" />
@@ -117,11 +118,11 @@ export const BudgetDetailView: React.FC<BudgetDetailViewProps> = ({ trip }) => {
           <span className="text-xs text-slate-500 mt-1.5 block">
             쇼핑 및 현지 돌발 지출에 활용 가능
           </span>
-        </div>
+        </Card>
       </div>
 
       {/* Progress Bar Breakdown */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+      <Card className="p-6 sm:p-8 space-y-6">
         <div>
           <h3 className="text-lg font-bold text-slate-900 mb-1">
             항목별 예산 배분 & 지출 구성비
@@ -185,7 +186,7 @@ export const BudgetDetailView: React.FC<BudgetDetailViewProps> = ({ trip }) => {
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Saving Tips Section */}
       {analysis.savingTips && analysis.savingTips.length > 0 && (
@@ -212,7 +213,7 @@ export const BudgetDetailView: React.FC<BudgetDetailViewProps> = ({ trip }) => {
       )}
 
       {/* Quick Live Currency Converter */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-7 border border-slate-200 shadow-sm space-y-4">
+      <Card className="p-6 sm:p-7 space-y-4">
         <div className="flex items-center gap-2">
           <ArrowRightLeft className="w-5 h-5 text-indigo-600" />
           <h3 className="text-base sm:text-lg font-bold text-slate-900">
@@ -265,7 +266,7 @@ export const BudgetDetailView: React.FC<BudgetDetailViewProps> = ({ trip }) => {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { TripPlan, PlaceSpot } from "../types";
 import { SpotCard } from "./SpotCard";
 import { DAY_MARKER_COLORS } from "../utils/formatters";
 import { Calendar, Compass, DollarSign, ArrowRight, Sparkles } from "lucide-react";
+import { Card } from "./ui";
 
 interface DayScheduleViewProps {
   trip: TripPlan;
@@ -76,9 +77,9 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
           const dayColor = DAY_MARKER_COLORS[(day.dayNumber - 1) % DAY_MARKER_COLORS.length];
 
           return (
-            <div
+            <Card
               key={day.dayNumber}
-              className="bg-white rounded-[32px] p-5 sm:p-7 border border-slate-200 shadow-sm space-y-4"
+              className="p-5 sm:p-7 space-y-4"
             >
               {/* Day Header Banner */}
               <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
@@ -140,7 +141,7 @@ export const DayScheduleView: React.FC<DayScheduleViewProps> = ({
                   />
                 ))}
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>

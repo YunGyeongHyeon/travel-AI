@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { TripPlan, PlaceSpot } from "../types";
 import { getTripThemeLabel } from "../utils/formatters";
 import { InteractiveMap } from "./InteractiveMap";
@@ -6,6 +6,7 @@ import { DayScheduleView } from "./DayScheduleView";
 import { FoodGuideView } from "./FoodGuideView";
 import { BudgetDetailView } from "./BudgetDetailView";
 import { TravelTipsView } from "./TravelTipsView";
+import { Button, Card } from "./ui";
 import {
   MapPin,
   Calendar,
@@ -38,7 +39,7 @@ interface TripOverviewProps {
   onSwapSpot: (spot: PlaceSpot) => void;
 }
 
-export const TripOverview: React.FC<TripOverviewProps> = ({
+export function TripOverview({
   trip,
   onReset,
   onSaveTrip,
@@ -46,7 +47,7 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
   onOpenExport,
   onOpenChat,
   onSwapSpot,
-}) => {
+}: TripOverviewProps) {
   const [activeTab, setActiveTab] = useState<
     "bento" | "schedule" | "food" | "budget" | "tips"
   >("bento");
@@ -89,7 +90,7 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Bento Header Bar */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/90 backdrop-blur-md p-6 rounded-[32px] border border-slate-200 shadow-xs">
+      <Card className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/90 backdrop-blur-md p-6 shadow-xs">
         <div>
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -117,51 +118,34 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
           </p>
         </div>
 
-        {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap self-stretch sm:self-auto">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={onSaveTrip}
-            className={`px-4 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
-              isSaved
-                ? "bg-amber-50 border-amber-300 text-amber-800"
-                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-            }`}
+            className={isSaved ? "bg-amber-50 border-amber-300 text-amber-800" : undefined}
           >
             <Bookmark
               className={`w-3.5 h-3.5 ${isSaved ? "fill-amber-500 text-amber-500" : "text-slate-400"}`}
             />
             <span>{isSaved ? "저장됨" : "일정 저장"}</span>
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            onClick={onOpenExport}
-            className="px-4 py-2.5 rounded-full text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-          >
+          <Button variant="secondary" onClick={onOpenExport}>
             <Share2 className="w-3.5 h-3.5 text-slate-400" />
             <span>공유 / 내보내기</span>
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            onClick={onOpenChat}
-            className="px-4 py-2.5 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
+          <Button variant="indigo" onClick={onOpenChat}>
             <MessageSquare className="w-3.5 h-3.5" />
             <span>AI 비서</span>
-          </button>
+          </Button>
 
-          <button
-            type="button"
-            onClick={onReset}
-            className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold text-xs shadow-md hover:bg-black transition-all flex items-center gap-1.5 cursor-pointer"
-          >
+          <Button onClick={onReset}>
             <RotateCcw className="w-3.5 h-3.5" />
             <span>조건 수정</span>
-          </button>
+          </Button>
         </div>
-      </header>
+      </Card>
 
       {/* Navigation Pills (Bento Grid Theme) */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
@@ -532,7 +516,7 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
           </div>
 
           <div className="lg:col-span-5 lg:sticky lg:top-24">
-            <div className="bg-white rounded-[32px] p-5 border border-slate-200 shadow-xs space-y-3">
+            <Card className="p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
                   <MapPin className="w-4 h-4 text-indigo-600" />
@@ -551,7 +535,7 @@ export const TripOverview: React.FC<TripOverviewProps> = ({
                   onSelectSpot={handleSelectSpot}
                 />
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       )}
