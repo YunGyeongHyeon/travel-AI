@@ -1,9 +1,16 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
-import { TravelRequest, TripPlan, PlaceSpot } from "./src/types.js";
+import { TravelRequest, TripPlan, PlaceSpot } from "./src/types/index.js";
+import { getErrorMessage } from "./src/lib/errors.js";
+import {
+  isChatMessage,
+  isPlaceSpot,
+  isTripPlanDraft,
+  parseJsonUnknown,
+} from "./src/lib/trip-plan.js";
 
 const app = express();
 const PORT = 3000;
@@ -858,17 +865,9 @@ app.post("/api/generate-itinerary", async (req, res) => {
       throw new Error("Gemini API returned an empty response.");
     }
 
-    let parsedPlan: any;
-    try {
-      parsedPlan = JSON.parse(responseText);
-    } catch (parseErr) {
-      console.error("JSON parse error from Gemini:", parseErr, responseText);
-      // Clean up markdown codeblocks if any
-      const cleaned = responseText
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      parsedPlan = JSON.parse(cleaned);
+    const parsedPlan = parseJsonUnknown(responseText);
+    if (!isTripPlanDraft(parsedPlan)) {
+      throw new Error("Gemini API returned an invalid itinerary shape.");
     }
 
     const fullPlan: TripPlan = {
@@ -879,10 +878,9 @@ app.post("/api/generate-itinerary", async (req, res) => {
     };
 
     res.json(fullPlan);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating itinerary:", error);
-    // Graceful fallback if Gemini fails
-    const sample = createSampleOsakaPlan(req.body);
+    const sample = createSampleOsakaPlan(req.body as Partial<TravelRequest>);
     res.json(sample);
   }
 });
@@ -890,7 +888,16 @@ app.post("/api/generate-itinerary", async (req, res) => {
 // Regenerate single spot endpoint
 app.post("/api/regenerate-spot", async (req, res) => {
   try {
-    const { destination, dayNumber, currentSpot, userPreference } = req.body;
+    const { destination, dayNumber, currentSpot, userPreference } = req.body as {
+      destination?: string;
+      dayNumber?: number;
+      currentSpot?: PlaceSpot;
+      userPreference?: string;
+    };
+
+    if (!currentSpot) {
+      return res.status(400).json({ error: "currentSpot is required" });
+    }
 
     const ai = getGeminiClient();
     if (!ai) {
@@ -920,24 +927,35 @@ app.post("/api/regenerate-spot", async (req, res) => {
     });
 
     const text = response.text || "{}";
-    const newSpot = JSON.parse(
-      text
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim(),
-    );
-    newSpot.id = "spot-" + Date.now();
+    const parsedSpot = parseJsonUnknown(text);
+    if (!isPlaceSpot(parsedSpot)) {
+      throw new Error("Gemini API returned an invalid spot shape.");
+    }
+    const newSpot: PlaceSpot = {
+      ...parsedSpot,
+      id: "spot-" + Date.now(),
+    };
     res.json(newSpot);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error regenerating spot:", err);
-    res.status(500).json({ error: err.message || "Failed to regenerate spot" });
+    res.status(500).json({
+      error: getErrorMessage(err, "Failed to regenerate spot"),
+    });
   }
 });
 
 // Trip Assistant AI Chat endpoint
 app.post("/api/trip-chat", async (req, res) => {
   try {
-    const { tripContext, message, chatHistory } = req.body;
+    const { tripContext, message, chatHistory } = req.body as {
+      tripContext?: TripPlan;
+      message?: string;
+      chatHistory?: unknown;
+    };
+
+    const history = Array.isArray(chatHistory)
+      ? chatHistory.filter(isChatMessage)
+      : [];
 
     const ai = getGeminiClient();
     if (!ai) {
@@ -946,15 +964,15 @@ app.post("/api/trip-chat", async (req, res) => {
       });
     }
 
-    const historyPrompt = chatHistory
-      ? chatHistory.map((m: any) => `${m.role}: ${m.content}`).join("\n")
-      : "";
+    const historyPrompt = history
+      .map((item) => `${item.role}: ${item.content}`)
+      .join("\n");
 
     const prompt = `현재 생성된 여행 일정 요약:
 - 여행지: ${tripContext?.destinationName} (${tripContext?.durationSummary})
 - 타이틀: ${tripContext?.tripTitle}
 - 하이라이트: ${tripContext?.highlights?.join(", ")}
-- 일자별 요약: ${tripContext?.days?.map((d: any) => `Day ${d.dayNumber}: ${d.themeTitle} (${d.summary})`).join(" | ")}
+- 일자별 요약: ${tripContext?.days?.map((day) => `Day ${day.dayNumber}: ${day.themeTitle} (${day.summary})`).join(" | ")}
 
 이전 대화 기록:
 ${historyPrompt}
@@ -973,11 +991,11 @@ ${historyPrompt}
     });
 
     res.json({ reply: response.text });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error in trip chat:", err);
-    res
-      .status(500)
-      .json({ error: err.message || "Failed to generate chat response" });
+    res.status(500).json({
+      error: getErrorMessage(err, "Failed to generate chat response"),
+    });
   }
 });
 

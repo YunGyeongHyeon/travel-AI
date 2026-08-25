@@ -1,36 +1,139 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+@custom-variant data-open (&:where([data-open], [data-open="true"]));
+@custom-variant data-closed (&:where([data-closed], [data-closed="true"]));
+@custom-variant data-active (&:where([data-active], [data-active="true"], [data-state="active"]));
+@custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-orientation="vertical"]));
+@custom-variant data-disabled (&:where([data-disabled], [data-disabled="true"], :disabled));
+
+:root {
+  --background: oklch(0.97 0.006 247.86);
+  --foreground: oklch(0.208 0.042 265.75);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.208 0.042 265.75);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.208 0.042 265.75);
+  --primary: oklch(0.511 0.23 277.12);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.968 0.007 247.9);
+  --secondary-foreground: oklch(0.21 0.034 264.67);
+  --muted: oklch(0.968 0.007 247.9);
+  --muted-foreground: oklch(0.554 0.041 257.42);
+  --accent: oklch(0.968 0.007 247.9);
+  --accent-foreground: oklch(0.21 0.034 264.67);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.929 0.013 255.51);
+  --input: oklch(0.929 0.013 255.51);
+  --ring: oklch(0.511 0.23 277.12);
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
 
 @layer base {
   * {
-    border-color: var(--color-slate-200, #e2e8f0);
+    @apply border-border;
   }
   body {
-    background-color: #F1F5F9;
-    color: #0f172a;
-    font-family: 'Noto Sans KR', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
+    @apply bg-background text-foreground antialiased;
+    font-family: "Noto Sans KR", "Plus Jakarta Sans", system-ui, sans-serif;
   }
 }
 
-/* Bento grid utility styling */
+.budget-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  cursor: pointer;
+}
+
+.budget-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+}
+
+.budget-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -6px;
+  border-radius: 9999px;
+  background: #f97316;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+}
+
+.budget-range::-moz-range-track {
+  height: 8px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+}
+
+.budget-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #f97316;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+}
+
 .bento-card {
   background-color: #ffffff;
   border-radius: 32px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.05),
+    0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }
 
 .bento-card-indigo {
   background-color: #4f46e5;
   border-radius: 32px;
   color: #ffffff;
-  box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.15), 0 8px 10px -6px rgba(79, 70, 229, 0.1);
+  box-shadow:
+    0 20px 25px -5px rgba(79, 70, 229, 0.15),
+    0 8px 10px -6px rgba(79, 70, 229, 0.1);
 }
 
-/* Custom Leaflet popup adjustments */
 .leaflet-popup-content-wrapper {
   border-radius: 1.25rem !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
   padding: 0 !important;
   overflow: hidden;
   border: 1px solid #e2e8f0;
@@ -46,7 +149,6 @@
   background-color: #e2e8f0 !important;
 }
 
-/* Custom scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -62,7 +164,6 @@
   background: #94a3b8;
 }
 
-/* Print optimizations */
 @media print {
   body {
     background: white !important;
