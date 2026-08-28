@@ -1,9 +1,15 @@
 import type { ChatMessage, PlaceSpot, TravelRequest, TripPlan } from "@/types";
 import { getErrorMessage } from "@/lib/errors";
 
-async function readApiError(response: Response, fallback: string): Promise<string> {
+async function readApiError(
+  response: Response,
+  fallback: string,
+): Promise<string> {
   try {
-    const data = (await response.json()) as { error?: string; message?: string };
+    const data = (await response.json()) as {
+      error?: string;
+      message?: string;
+    };
     return data.error || data.message || fallback;
   } catch {
     return fallback;
@@ -74,6 +80,64 @@ export async function sendTripChat(input: {
       getErrorMessage(
         error,
         "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+      ),
+    );
+  }
+}
+
+import { getSupabase } from "@/lib/supabase";
+
+export async function getTestData(): Promise<void> {
+  const { data: user_info, error } = await getSupabase()
+    .from("user_info")
+    .select("*");
+
+  if (error) {
+    throw new Error(
+      getErrorMessage(
+        error,
+        "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+      ),
+    );
+  }
+
+  console.log(user_info);
+}
+
+export async function registerUser(input: {
+  email: string;
+  password: string;
+}): Promise<void> {
+  const { data: authData, error: authError } = await getSupabase().auth.signUp({
+    email: input.email,
+    password: input.password,
+  });
+  console.log(authData);
+  if (authError) {
+    throw new Error(
+      getErrorMessage(
+        authError,
+        "회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.",
+      ),
+    );
+  }
+}
+
+export async function loginUser(input: {
+  email: string;
+  password: string;
+}): Promise<void> {
+  const { data: authData, error: authError } =
+    await getSupabase().auth.signInWithPassword({
+      email: input.email,
+      password: input.password,
+    });
+  console.log(authData);
+  if (authError) {
+    throw new Error(
+      getErrorMessage(
+        authError,
+        "로그인에 실패했습니다. 잠시 후 다시 시도해주세요.",
       ),
     );
   }
