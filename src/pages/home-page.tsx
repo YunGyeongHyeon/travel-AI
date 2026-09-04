@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { TripInputForm } from "@/components/trip/trip-input-form";
 import { useTripPlannerContext } from "@/hooks/trip-planner-context";
 import type { TravelRequest } from "@/types";
-import { getTestData, loginUser, registerUser } from "@/lib/api";
 
 export function HomePage() {
   const { isLoading, generateItinerary } = useTripPlannerContext();
@@ -26,18 +25,13 @@ export function HomePage() {
         <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
           나만의 완벽한 여행 일정을 만들어보세요
         </h2>
-        <button onClick={() => getTestData()}>Get Test Data</button>
-        <button
-          onClick={() =>
-            // registerUser({ email: "y300513@naver.com", password: "test123" })
-            loginUser({ email: "y300513@naver.com", password: "test123" })
-          }
-        >
-          Register User
-        </button>
         <p className="text-xs sm:text-sm text-slate-600">
           원하는 여행지와 시간, 예산, 식도락/힐링 테마를 입력하면 최적의 맛집과
           이동 동선을 지도와 함께 상세히 구성해 드립니다.
+        </p>
+        <p className="text-[11px] text-slate-400">
+          생성한 일정은 자동으로 여행 로그에 남습니다. 언제든 다시 꺼내볼 수
+          있어요.
         </p>
       </div>
 

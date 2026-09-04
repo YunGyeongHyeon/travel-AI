@@ -1,5 +1,12 @@
-import type { ChatMessage, PlaceSpot, TravelRequest, TripPlan } from "@/types";
+import type {
+  ChatMessage,
+  GenerateItineraryResult,
+  PlaceSpot,
+  TravelRequest,
+  TripPlan,
+} from "@/types";
 import { getErrorMessage } from "@/lib/errors";
+import { getSupabase } from "@/lib/supabase";
 
 async function readApiError(
   response: Response,
@@ -16,12 +23,32 @@ async function readApiError(
   }
 }
 
-async function requestJson<T>(
+/**
+ * AI 엔드포인트는 전부 로그인한 사용자만 호출할 수 있다.
+ * 서버가 이 토큰을 JWKS로 검증하고, 같은 토큰으로 로그를 기록한다.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await getSupabase().auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) {
+    throw new Error("로그인이 필요합니다. 다시 로그인해 주세요.");
+  }
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+async function postJson<T>(
   url: string,
-  init: RequestInit,
+  body: unknown,
   fallback: string,
 ): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: JSON.stringify(body),
+  });
   if (!response.ok) {
     throw new Error(await readApiError(response, fallback));
   }
@@ -30,14 +57,10 @@ async function requestJson<T>(
 
 export async function generateItinerary(
   request: TravelRequest,
-): Promise<TripPlan> {
-  return requestJson<TripPlan>(
+): Promise<GenerateItineraryResult> {
+  return postJson<GenerateItineraryResult>(
     "/api/generate-itinerary",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-    },
+    request,
     "여행 일정을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
   );
 }
@@ -48,13 +71,9 @@ export async function regenerateSpot(input: {
   currentSpot: PlaceSpot;
   userPreference: string;
 }): Promise<PlaceSpot> {
-  return requestJson<PlaceSpot>(
+  return postJson<PlaceSpot>(
     "/api/regenerate-spot",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    },
+    input,
     "대안 장소를 찾지 못했습니다. 잠시 후 다시 시도해 주세요.",
   );
 }
@@ -65,13 +84,9 @@ export async function sendTripChat(input: {
   chatHistory: ChatMessage[];
 }): Promise<string> {
   try {
-    const data = await requestJson<{ reply?: string }>(
+    const data = await postJson<{ reply?: string }>(
       "/api/trip-chat",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      },
+      input,
       "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
     );
     return data.reply || "죄송합니다, 잠시 후 다시 질문해주세요.";
@@ -80,64 +95,6 @@ export async function sendTripChat(input: {
       getErrorMessage(
         error,
         "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-      ),
-    );
-  }
-}
-
-import { getSupabase } from "@/lib/supabase";
-
-export async function getTestData(): Promise<void> {
-  const { data: user_info, error } = await getSupabase()
-    .from("user_info")
-    .select("*");
-
-  if (error) {
-    throw new Error(
-      getErrorMessage(
-        error,
-        "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-      ),
-    );
-  }
-
-  console.log(user_info);
-}
-
-export async function registerUser(input: {
-  email: string;
-  password: string;
-}): Promise<void> {
-  const { data: authData, error: authError } = await getSupabase().auth.signUp({
-    email: input.email,
-    password: input.password,
-  });
-  console.log(authData);
-  if (authError) {
-    throw new Error(
-      getErrorMessage(
-        authError,
-        "회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.",
-      ),
-    );
-  }
-}
-
-export async function loginUser(input: {
-  email: string;
-  password: string;
-}): Promise<void> {
-  const { data: authData, error: authError } =
-    await getSupabase().auth.signInWithPassword({
-      email: input.email,
-      password: input.password,
-    });
-  console.log(authData);
-  if (authError) {
-    throw new Error(
-      getErrorMessage(
-        authError,
-        "로그인에 실패했습니다. 잠시 후 다시 시도해주세요.",
       ),
     );
   }

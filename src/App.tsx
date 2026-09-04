@@ -5,42 +5,55 @@ import { AlertBanner } from "@/components/alert-banner";
 import { TripChatDrawer } from "@/components/trip/trip-chat-drawer";
 import { SpotSwapModal } from "@/components/trip/spot-swap-modal";
 import { ExportModal } from "@/components/trip/export-modal";
-import { SavedTripsModal } from "@/components/trip/saved-trips-modal";
+import { TripLogsModal } from "@/components/trip/trip-logs-modal";
+import { AuthProvider, useAuth } from "@/hooks/auth-context";
 import { TripPlannerProvider, useTripPlannerContext } from "@/hooks/trip-planner-context";
 import { HomePage } from "@/pages/home-page";
+import { LoginPage } from "@/pages/login-page";
 import { PlanPage } from "@/pages/plan-page";
 import { PlanDetailPage } from "@/pages/plan-detail-page";
+import { RequireAuth } from "@/pages/require-auth";
 import { RequireTrip } from "@/pages/require-trip";
 
 function AppLayout() {
   const {
     currentTrip,
-    savedTrips,
+    logs,
+    favoriteCount,
+    isLogsLoading,
     error,
-    isSavedOpen,
+    canRetryGenerate,
+    isLogsOpen,
     isExportOpen,
     isChatOpen,
     swapTargetSpot,
-    setIsSavedOpen,
+    setIsLogsOpen,
     setIsExportOpen,
     setIsChatOpen,
     setSwapTargetSpot,
     clearError,
     retryLastGenerate,
-    loadSavedTrip,
-    deleteSavedTrip,
+    openLog,
+    toggleFavorite,
+    deleteLog,
     applySpotSwap,
   } = useTripPlannerContext();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   return (
     <AppShell
       header={
         <Navbar
-          savedCount={savedTrips.length}
-          onOpenSaved={() => setIsSavedOpen(true)}
+          logCount={logs.length}
+          favoriteCount={favoriteCount}
+          onOpenLogs={() => setIsLogsOpen(true)}
           hasActiveTrip={!!currentTrip}
           activeTrip={currentTrip}
+          userEmail={user?.email ?? null}
+          onSignOut={() => {
+            void signOut().then(() => navigate("/login", { replace: true }));
+          }}
         />
       }
       chatAction={
@@ -52,13 +65,17 @@ function AppLayout() {
       {error && (
         <AlertBanner
           message={error}
-          onRetry={() => {
-            void retryLastGenerate().then((plan) => {
-              if (plan) {
-                navigate("/plan");
-              }
-            });
-          }}
+          onRetry={
+            canRetryGenerate
+              ? () => {
+                  void retryLastGenerate().then((plan) => {
+                    if (plan) {
+                      navigate("/plan");
+                    }
+                  });
+                }
+              : undefined
+          }
           onDismiss={clearError}
         />
       )}
@@ -87,16 +104,27 @@ function AppLayout() {
         </>
       )}
 
-      <SavedTripsModal
-        isOpen={isSavedOpen}
-        onClose={() => setIsSavedOpen(false)}
-        savedTrips={savedTrips}
-        onLoadTrip={(trip) => {
-          loadSavedTrip(trip);
-          navigate("/plan");
-        }}
-        onDeleteTrip={deleteSavedTrip}
-      />
+      {user && (
+        <TripLogsModal
+          isOpen={isLogsOpen}
+          onClose={() => setIsLogsOpen(false)}
+          logs={logs}
+          isLoading={isLogsLoading}
+          onOpenLog={(logId) => {
+            void openLog(logId).then((plan) => {
+              if (plan) {
+                navigate("/plan");
+              }
+            });
+          }}
+          onToggleFavorite={(logId) => {
+            void toggleFavorite(logId);
+          }}
+          onDeleteLog={(logId) => {
+            void deleteLog(logId);
+          }}
+        />
+      )}
     </AppShell>
   );
 }
@@ -104,17 +132,22 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <TripPlannerProvider>
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route element={<RequireTrip />}>
-              <Route path="/plan" element={<PlanPage />} />
-              <Route path="/plan/detail" element={<PlanDetailPage />} />
+      <AuthProvider>
+        <TripPlannerProvider>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route element={<RequireAuth />}>
+                <Route path="/" element={<HomePage />} />
+                <Route element={<RequireTrip />}>
+                  <Route path="/plan" element={<PlanPage />} />
+                  <Route path="/plan/detail" element={<PlanDetailPage />} />
+                </Route>
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </TripPlannerProvider>
+          </Routes>
+        </TripPlannerProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

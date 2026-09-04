@@ -1,4 +1,9 @@
-import type { PlaceSpot, TravelRequest, TripPlan } from "@/types";
+import type {
+  PlaceSpot,
+  TravelRequest,
+  TripLogSummary,
+  TripPlan,
+} from "@/types";
 
 export const mockRequest: TravelRequest = {
   destination: "일본 오사카",
@@ -112,6 +117,21 @@ export function createMockTrip(overrides: Partial<TripPlan> = {}): TripPlan {
       localEtiquette: [],
       weatherAdvice: "",
     },
+    ...overrides,
+  };
+}
+
+export function createMockLog(
+  overrides: Partial<TripLogSummary> = {},
+): TripLogSummary {
+  return {
+    id: "00000000-0000-4000-8000-000000000001",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    isFavorite: false,
+    tripTitle: "테스트 여행",
+    destinationName: "오사카",
+    durationSummary: "2박 3일",
+    targetBudget: 1_000_000,
     ...overrides,
   };
 }

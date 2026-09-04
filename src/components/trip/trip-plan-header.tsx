@@ -1,11 +1,11 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  Bookmark,
   MessageSquare,
   RotateCcw,
   Share2,
   LayoutGrid,
   Layers,
+  Star,
 } from "lucide-react";
 import type { TripPlan } from "@/types";
 import { getTripThemeLabel } from "@/lib/formatters";
@@ -13,16 +13,19 @@ import { Button } from "@/components/ui/button";
 
 type TripPlanHeaderProps = {
   trip: TripPlan;
-  isSaved: boolean;
-  onSaveTrip: () => void;
+  isFavorite: boolean;
+  /** 로그로 남지 않은 일정은 즐겨찾기할 대상이 없다. */
+  canFavorite: boolean;
+  onToggleFavorite: () => void;
   onOpenExport: () => void;
   onOpenChat: () => void;
 };
 
 export function TripPlanHeader({
   trip,
-  isSaved,
-  onSaveTrip,
+  isFavorite,
+  canFavorite,
+  onToggleFavorite,
   onOpenExport,
   onOpenChat,
 }: TripPlanHeaderProps) {
@@ -62,15 +65,24 @@ export function TripPlanHeader({
       <div className="flex items-center gap-2 flex-wrap self-stretch sm:self-auto">
         <Button
           variant="secondary"
-          onClick={onSaveTrip}
+          onClick={onToggleFavorite}
+          disabled={!canFavorite}
+          aria-pressed={isFavorite}
+          title={
+            canFavorite
+              ? isFavorite
+                ? "즐겨찾기 해제"
+                : "즐겨찾기에 추가"
+              : "로그에 저장되지 않은 일정입니다"
+          }
           className={`h-auto rounded-full px-4 py-2.5 text-xs font-bold ${
-            isSaved ? "bg-amber-50 border-amber-300 text-amber-800" : ""
+            isFavorite ? "bg-amber-50 border-amber-300 text-amber-800" : ""
           }`}
         >
-          <Bookmark
-            className={`w-3.5 h-3.5 ${isSaved ? "fill-amber-500 text-amber-500" : "text-slate-400"}`}
+          <Star
+            className={`w-3.5 h-3.5 ${isFavorite ? "fill-amber-500 text-amber-500" : "text-slate-400"}`}
           />
-          <span>{isSaved ? "저장됨" : "일정 저장"}</span>
+          <span>{isFavorite ? "즐겨찾기됨" : "즐겨찾기"}</span>
         </Button>
 
         <Button

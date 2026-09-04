@@ -1,21 +1,27 @@
 import { Link } from "react-router-dom";
-import { Bookmark, Plus, Map } from "lucide-react";
+import { History, LogOut, Plus, Map, Star } from "lucide-react";
 import { TripPlan } from "@/types";
 import { getTripThemeLabel } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
 
 interface NavbarProps {
-  savedCount: number;
-  onOpenSaved: () => void;
+  logCount: number;
+  favoriteCount: number;
+  onOpenLogs: () => void;
   hasActiveTrip: boolean;
   activeTrip?: TripPlan | null;
+  userEmail?: string | null;
+  onSignOut: () => void;
 }
 
 export function Navbar({
-  savedCount,
-  onOpenSaved,
+  logCount,
+  favoriteCount,
+  onOpenLogs,
   hasActiveTrip,
   activeTrip,
+  userEmail,
+  onSignOut,
 }: NavbarProps) {
   return (
     <header className="sticky top-0 z-30 bg-[#F1F5F9]/90 backdrop-blur-md border-b border-slate-200/80 transition-all">
@@ -92,19 +98,48 @@ export function Navbar({
             </Button>
           )}
 
-          <Button
-            variant="secondary"
-            onClick={onOpenSaved}
-            className="relative h-auto rounded-full px-4 py-2.5 text-xs font-bold"
-          >
-            <Bookmark className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="hidden sm:inline">저장 목록</span>
-            {savedCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
-                {savedCount}
-              </span>
-            )}
-          </Button>
+          {userEmail && (
+            <>
+              <Button
+                variant="secondary"
+                onClick={onOpenLogs}
+                className="relative h-auto rounded-full px-4 py-2.5 text-xs font-bold"
+              >
+                <History className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="hidden sm:inline">여행 로그</span>
+                {logCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                    {logCount}
+                  </span>
+                )}
+                {favoriteCount > 0 && (
+                  <span className="hidden sm:flex items-center gap-0.5 text-[10px] font-bold text-amber-600">
+                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                    {favoriteCount}
+                  </span>
+                )}
+              </Button>
+
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="hidden md:inline text-[11px] font-semibold text-slate-500 max-w-[10rem] truncate"
+                  title={userEmail}
+                >
+                  {userEmail}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onSignOut}
+                  title="로그아웃"
+                  aria-label="로그아웃"
+                  className="text-slate-400 hover:text-rose-600"
+                >
+                  <LogOut />
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

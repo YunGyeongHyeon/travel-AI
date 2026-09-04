@@ -155,3 +155,31 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
 }
+
+// ── 여행 로그 ────────────────────────────────────────────────
+// 일정을 생성하면(=AI 비용이 발생하면) 무조건 로그로 남는다.
+// 로그의 id는 DB가 발급한 uuid이고, TripPlan.id와는 별개다.
+// TripPlan.id는 화면 렌더링용 키일 뿐 PK로 쓰지 않는다.
+
+export interface TripLogSummary {
+  id: string; // uuid (DB PK)
+  createdAt: string;
+  isFavorite: boolean;
+  tripTitle: string;
+  destinationName: string;
+  durationSummary: string;
+  targetBudget: number;
+}
+
+export interface TripLog extends TripLogSummary {
+  plan: TripPlan;
+}
+
+/** 일정 생성 API 응답. */
+export interface GenerateItineraryResult {
+  plan: TripPlan;
+  /** null이면 로그에 남지 않았다. isDemo일 때는 정상이고, 아니면 저장 실패다. */
+  log: TripLogSummary | null;
+  /** AI 키 없이 돌아가는 데모 샘플. 실제 생성물이 아니라 로그에도 남지 않는다. */
+  isDemo?: boolean;
+}

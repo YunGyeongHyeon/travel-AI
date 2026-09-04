@@ -1,12 +1,14 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useTripPlanner } from "@/hooks/use-trip-planner";
+import { useAuth } from "@/hooks/auth-context";
 
 type TripPlannerContextValue = ReturnType<typeof useTripPlanner>;
 
 const TripPlannerContext = createContext<TripPlannerContextValue | null>(null);
 
 export function TripPlannerProvider({ children }: { children: ReactNode }) {
-  const value = useTripPlanner();
+  const { user } = useAuth();
+  const value = useTripPlanner(user?.id ?? null);
   return (
     <TripPlannerContext.Provider value={value}>
       {children}

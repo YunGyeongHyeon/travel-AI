@@ -5,8 +5,9 @@ import { useTripPlannerContext } from "@/hooks/trip-planner-context";
 export function PlanPage() {
   const {
     currentTrip,
-    isCurrentTripSaved,
-    saveCurrentTrip,
+    currentLogId,
+    isCurrentTripFavorite,
+    toggleCurrentTripFavorite,
     setIsExportOpen,
     setIsChatOpen,
   } = useTripPlannerContext();
@@ -19,8 +20,9 @@ export function PlanPage() {
     <div className="space-y-6">
       <TripPlanHeader
         trip={currentTrip}
-        isSaved={isCurrentTripSaved}
-        onSaveTrip={saveCurrentTrip}
+        isFavorite={isCurrentTripFavorite}
+        canFavorite={!!currentLogId}
+        onToggleFavorite={toggleCurrentTripFavorite}
         onOpenExport={() => setIsExportOpen(true)}
         onOpenChat={() => setIsChatOpen(true)}
       />
