@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { History, LogOut, Plus, Map, Star } from "lucide-react";
+import { Coins, History, LogOut, Plus, Map, Star } from "lucide-react";
 import { TripPlan } from "@/types";
 import { getTripThemeLabel } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ interface NavbarProps {
   hasActiveTrip: boolean;
   activeTrip?: TripPlan | null;
   userEmail?: string | null;
+  /** null이면 크레딧을 도입하지 않은 상태라 표시하지 않는다. */
+  credits?: number | null;
   onSignOut: () => void;
 }
 
@@ -21,6 +23,7 @@ export function Navbar({
   hasActiveTrip,
   activeTrip,
   userEmail,
+  credits,
   onSignOut,
 }: NavbarProps) {
   return (
@@ -100,6 +103,21 @@ export function Navbar({
 
           {userEmail && (
             <>
+              {credits !== null && credits !== undefined && (
+                <div
+                  title={`남은 크레딧 ${credits}개 — 일정 1건 생성에 1개 필요`}
+                  className={`flex items-center gap-1 rounded-full px-3 py-2 text-xs font-bold border ${
+                    credits === 0
+                      ? "bg-rose-50 border-rose-200 text-rose-700"
+                      : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                  }`}
+                >
+                  <Coins className="w-3.5 h-3.5" />
+                  <span>{credits}</span>
+                  <span className="hidden sm:inline font-semibold">크레딧</span>
+                </div>
+              )}
+
               <Button
                 variant="secondary"
                 onClick={onOpenLogs}

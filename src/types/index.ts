@@ -182,4 +182,6 @@ export interface GenerateItineraryResult {
   log: TripLogSummary | null;
   /** AI 키 없이 돌아가는 데모 샘플. 실제 생성물이 아니라 로그에도 남지 않는다. */
   isDemo?: boolean;
+  /** 차감 후 남은 크레딧. 크레딧을 아직 도입하지 않았으면 null. */
+  creditsRemaining?: number | null;
 }

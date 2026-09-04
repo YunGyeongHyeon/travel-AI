@@ -14,6 +14,7 @@ import {
   setTripLogFavorite,
   updateTripLogPlan,
 } from "@/lib/trip-logs";
+import { fetchCreditBalance } from "@/lib/credits";
 import { getErrorMessage } from "@/lib/errors";
 
 const CURRENT_TRIP_KEY = "ai_travel_current_trip";
@@ -61,6 +62,9 @@ export function useTripPlanner(userId: string | null) {
     () => restored.current?.logId ?? null,
   );
   const [logs, setLogs] = useState<TripLogSummary[]>([]);
+  // null = 크레딧 미도입(supabase/credits.sql 미실행) 또는 조회 실패.
+  // 이때는 화면에 크레딧을 아예 표시하지 않는다.
+  const [credits, setCredits] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   // 로그인 상태로 들어왔다면 곧바로 로그를 불러올 참이다.
   // false로 시작하면 목록이 잠깐 "로그 없음"으로 깜빡인다.
@@ -93,9 +97,14 @@ export function useTripPlanner(userId: string | null) {
     }
   }, [fail]);
 
+  const refreshCredits = useCallback(async () => {
+    setCredits(await fetchCreditBalance());
+  }, []);
+
   useEffect(() => {
     if (!userId) {
       setLogs([]);
+      setCredits(null);
       setCurrentTrip(null);
       setCurrentLogId(null);
       persistCurrentTrip(null);
@@ -107,12 +116,14 @@ export function useTripPlanner(userId: string | null) {
       await migrateLegacyTrips(userId);
       if (!active) return;
       await refreshLogs();
+      if (!active) return;
+      await refreshCredits();
     })();
 
     return () => {
       active = false;
     };
-  }, [userId, refreshLogs]);
+  }, [userId, refreshLogs, refreshCredits]);
 
   /**
    * 일정 생성. 서버가 Claude를 호출하고 그 자리에서 로그로 남긴 뒤 돌려준다.
@@ -125,7 +136,12 @@ export function useTripPlanner(userId: string | null) {
     setCanRetryGenerate(false);
 
     try {
-      const { plan, log, isDemo } = await requestItinerary(request);
+      const { plan, log, isDemo, creditsRemaining } =
+        await requestItinerary(request);
+
+      if (creditsRemaining !== undefined && creditsRemaining !== null) {
+        setCredits(creditsRemaining);
+      }
 
       setCurrentTrip(plan);
       setCurrentLogId(log?.id ?? null);
@@ -153,11 +169,15 @@ export function useTripPlanner(userId: string | null) {
         ),
       );
       setCanRetryGenerate(true);
+
+      // 실패 시 서버가 크레딧을 환불했을 수도, 잔액 부족으로 아예 안 깎았을 수도
+      // 있다. 어느 쪽인지 추측하지 말고 실제 잔액을 다시 읽는다.
+      void refreshCredits();
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [refreshCredits]);
 
   const retryLastGenerate = useCallback(async () => {
     if (!lastRequestRef.current) {
@@ -279,6 +299,7 @@ export function useTripPlanner(userId: string | null) {
     currentTrip,
     currentLogId,
     logs,
+    credits,
     favoriteCount,
     isLoading,
     isLogsLoading,
@@ -297,6 +318,7 @@ export function useTripPlanner(userId: string | null) {
     generateItinerary,
     retryLastGenerate,
     refreshLogs,
+    refreshCredits,
     toggleFavorite,
     toggleCurrentTripFavorite,
     deleteLog,

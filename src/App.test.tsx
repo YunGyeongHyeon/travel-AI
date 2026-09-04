@@ -21,6 +21,10 @@ vi.mock("@/hooks/auth-context", () => ({
   }),
 }));
 
+vi.mock("@/lib/credits", () => ({
+  fetchCreditBalance: vi.fn().mockResolvedValue(3),
+}));
+
 vi.mock("@/lib/trip-logs", () => ({
   fetchTripLogs: vi.fn().mockResolvedValue([]),
   fetchTripLog: vi.fn(),
@@ -124,5 +128,17 @@ describe("App routes", () => {
     });
     expect(screen.getByText("traveler@example.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "로그아웃" })).toBeInTheDocument();
+  });
+
+  it("크레딧 잔액을 상단에 보여준다", async () => {
+    signIn();
+    window.history.pushState({}, "", "/");
+    render(<App />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTitle("남은 크레딧 3개 — 일정 1건 생성에 1개 필요"),
+      ).toBeInTheDocument();
+    });
   });
 });

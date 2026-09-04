@@ -20,8 +20,13 @@ const store = vi.hoisted(() => ({
   migrateLegacyTrips: vi.fn(),
 }));
 
+const credits = vi.hoisted(() => ({
+  fetchCreditBalance: vi.fn(),
+}));
+
 vi.mock("@/lib/api", () => api);
 vi.mock("@/lib/trip-logs", () => store);
+vi.mock("@/lib/credits", () => credits);
 
 const USER_ID = "user-1";
 const CURRENT_TRIP_KEY = "ai_travel_current_trip";
@@ -39,6 +44,7 @@ async function renderLoggedIn(userId: string | null = USER_ID) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  credits.fetchCreditBalance.mockResolvedValue(3);
   store.fetchTripLogs.mockResolvedValue([]);
   store.migrateLegacyTrips.mockResolvedValue(0);
   store.setTripLogFavorite.mockResolvedValue(undefined);
@@ -112,6 +118,73 @@ describe("useTripPlanner", () => {
     expect(result.current.error).toContain("로그 저장에 실패");
     // 재생성은 돈이 또 나가므로 저장 실패에는 다시 시도를 붙이지 않는다.
     expect(result.current.canRetryGenerate).toBe(false);
+  });
+
+  it("로그인하면 크레딧 잔액을 불러온다", async () => {
+    credits.fetchCreditBalance.mockResolvedValue(7);
+
+    const { result } = await renderLoggedIn();
+
+    await waitFor(() => {
+      expect(result.current.credits).toBe(7);
+    });
+  });
+
+  it("생성에 성공하면 응답에 담긴 남은 크레딧으로 갱신한다", async () => {
+    api.generateItinerary.mockResolvedValue({
+      plan: createMockTrip(),
+      log: createMockLog(),
+      creditsRemaining: 2,
+    });
+
+    const { result } = await renderLoggedIn();
+    await waitFor(() => expect(result.current.credits).toBe(3));
+
+    await act(async () => {
+      await result.current.generateItinerary(mockRequest);
+    });
+
+    expect(result.current.credits).toBe(2);
+    // 응답에 값이 있으므로 굳이 다시 조회하지 않는다 (최초 1회만)
+    expect(credits.fetchCreditBalance).toHaveBeenCalledTimes(1);
+  });
+
+  it("크레딧을 도입하지 않았으면(null) 잔액을 건드리지 않는다", async () => {
+    credits.fetchCreditBalance.mockResolvedValue(null);
+    api.generateItinerary.mockResolvedValue({
+      plan: createMockTrip(),
+      log: createMockLog(),
+      creditsRemaining: null,
+    });
+
+    const { result } = await renderLoggedIn();
+
+    await act(async () => {
+      await result.current.generateItinerary(mockRequest);
+    });
+
+    expect(result.current.credits).toBeNull();
+  });
+
+  it("생성에 실패하면 잔액을 추측하지 않고 다시 조회한다", async () => {
+    api.generateItinerary.mockRejectedValue(
+      new Error("크레딧이 모두 소진되었습니다."),
+    );
+    credits.fetchCreditBalance
+      .mockResolvedValueOnce(1) // 최초 로드
+      .mockResolvedValueOnce(0); // 실패 후 재조회
+
+    const { result } = await renderLoggedIn();
+    await waitFor(() => expect(result.current.credits).toBe(1));
+
+    await act(async () => {
+      await result.current.generateItinerary(mockRequest);
+    });
+
+    await waitFor(() => {
+      expect(result.current.credits).toBe(0);
+    });
+    expect(credits.fetchCreditBalance).toHaveBeenCalledTimes(2);
   });
 
   it("데모 모드는 견본이라고 알리되 저장 실패로 취급하지 않는다", async () => {
@@ -368,6 +441,7 @@ describe("useTripPlanner", () => {
 
     expect(result.current.currentTrip).toBeNull();
     expect(result.current.logs).toEqual([]);
+    expect(result.current.credits).toBeNull();
     expect(sessionStorage.getItem(CURRENT_TRIP_KEY)).toBeNull();
   });
 

@@ -19,6 +19,7 @@ import {
 } from "./src/lib/trip-plan.js";
 import { requireAuth, type AuthedRequest } from "./server/auth.js";
 import { insertTripLog } from "./server/trip-log-store.js";
+import { consumeCredit, refundCredit } from "./server/credits.js";
 
 const app = express();
 const PORT = 3000;
@@ -723,13 +724,14 @@ async function respondWithPlan(
   res: Response,
   travelReq: TravelRequest,
   plan: TripPlan,
+  creditsRemaining: number | null,
 ) {
   const auth = (req as AuthedRequest).auth;
   const log = auth
     ? await insertTripLog(auth.token, auth.userId, travelReq, plan)
     : null;
 
-  res.json({ plan, log });
+  res.json({ plan, log, creditsRemaining });
 }
 
 /**
@@ -748,6 +750,9 @@ function respondWithDemoPlan(
 
 // Generate Itinerary Endpoint
 app.post("/api/generate-itinerary", requireAuth, async (req, res) => {
+  // catch에서도 봐야 하므로 try 밖에 둔다. 차감했는데 실패하면 돌려줘야 한다.
+  let creditConsumed = false;
+
   try {
     const travelReq: TravelRequest = req.body;
 
@@ -767,6 +772,23 @@ app.post("/api/generate-itinerary", requireAuth, async (req, res) => {
       demoPlan.tripTitle = `${travelReq.destination} ${travelReq.durationNights}박 ${travelReq.durationDays}일 맞춤 여행 일정`;
       return respondWithDemoPlan(res, travelReq, demoPlan);
     }
+
+    // AI를 부르기 전에 차감한다. 부르고 나서 차감하면 응답 도중 사용자가
+    // 창을 닫았을 때 원가만 나가고 과금은 못 한다.
+    const auth = (req as AuthedRequest).auth!;
+    const credit = await consumeCredit(auth.userId);
+
+    if (!credit.ok && credit.reason === "insufficient") {
+      return res.status(402).json({
+        error:
+          "크레딧이 모두 소진되었습니다. 일정 1건 생성에 1크레딧이 필요합니다.",
+        creditsRemaining: 0,
+      });
+    }
+    // unavailable(크레딧 DB 장애)은 통과시킨다. 과금은 못 하지만
+    // 크레딧 시스템 하나 때문에 서비스 전체가 멈추는 편이 더 나쁘다.
+    creditConsumed = credit.ok;
+    const creditsRemaining = credit.ok ? credit.remaining : null;
 
     const systemInstruction = `당신은 전 세계 여행 동선 최적화 전문가이자 최고의 현지 미식(식도락) 큐레이터입니다.
 사용자가 입력한 목적지, 일정(N박 N일), 총 예산, 선호 테마, 동행자, 이동 스타일 등을 바탕으로 실제 여행자가 100% 만족할 수 있는 구체적이고 정교한 여행 일정(JSON 형식)을 생성합니다.
@@ -882,9 +904,9 @@ app.post("/api/generate-itinerary", requireAuth, async (req, res) => {
       maxTokens: 64000,
     });
 
-    // 구조화 출력이 모양을 보장하지만, 방어적으로 한 번 더 확인한다.
+    // Claude는 구조화 출력이 모양을 보장하지만 Gemini는 아니다. 한 번 더 확인한다.
     if (!isTripPlanDraft(parsedPlan)) {
-      throw new Error("Claude API returned an invalid itinerary shape.");
+      throw new Error("AI가 일정 형식에 맞지 않는 응답을 반환했습니다.");
     }
 
     const fullPlan: TripPlan = {
@@ -895,11 +917,20 @@ app.post("/api/generate-itinerary", requireAuth, async (req, res) => {
       ...parsedPlan,
     };
 
-    await respondWithPlan(req, res, travelReq, fullPlan);
+    await respondWithPlan(req, res, travelReq, fullPlan, creditsRemaining);
   } catch (error: unknown) {
     // 예전에는 여기서 오사카 샘플을 돌려줬다. 그러면 크레딧 부족이든 과부하든
     // 전부 "성공"처럼 보이고, 가짜 일정이 로그에 쌓인다. 실패는 실패라고 알린다.
     console.error("Error generating itinerary:", error);
+
+    // 결과를 못 줬으면 크레딧도 받지 않는다.
+    // Gemini 503이나 JSON 깨짐은 실제로 일어나는 일이라 이게 없으면
+    // 사용자는 일정 없이 크레딧만 잃는다.
+    const auth = (req as AuthedRequest).auth;
+    if (creditConsumed && auth) {
+      await refundCredit(auth.userId);
+    }
+
     res.status(502).json({
       error: describeAiError(
         error,

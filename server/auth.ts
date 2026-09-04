@@ -123,3 +123,24 @@ export function createUserScopedClient(token: string): SupabaseClient | null {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
+
+/**
+ * RLS를 우회하는 서비스 클라이언트.
+ *
+ * 크레딧 차감·환불처럼 "사용자가 스스로 하면 안 되는" 조작에만 쓴다.
+ * 이 키가 브라우저로 새면 DB 전체가 열리므로 절대 프론트로 내보내지 말 것.
+ */
+export function createServiceClient(): SupabaseClient | null {
+  const url = env("SUPABASE_URL");
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) {
+    console.error(
+      "SUPABASE_URL 또는 SUPABASE_SECRET_KEY가 없어 크레딧을 처리할 수 없습니다.",
+    );
+    return null;
+  }
+
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}

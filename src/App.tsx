@@ -19,6 +19,7 @@ function AppLayout() {
   const {
     currentTrip,
     logs,
+    credits,
     favoriteCount,
     isLogsLoading,
     error,
@@ -51,6 +52,7 @@ function AppLayout() {
           hasActiveTrip={!!currentTrip}
           activeTrip={currentTrip}
           userEmail={user?.email ?? null}
+          credits={credits}
           onSignOut={() => {
             void signOut().then(() => navigate("/login", { replace: true }));
           }}
