@@ -1,30 +1,33 @@
 import "dotenv/config";
-import express from "express";
+import express, { type Request, type Response } from "express";
 import path from "path";
-import { GoogleGenAI, Type } from "@google/genai";
+import {
+  describeAiError,
+  describeAiSelection,
+  getAiProvider,
+} from "./server/ai.js";
+import {
+  placeSpotSchema,
+  tripPlanDraftSchema,
+} from "./server/trip-plan-schema.js";
 import { createServer as createViteServer } from "vite";
-import { TravelRequest, TripPlan, PlaceSpot } from "./src/types.js";
+import { TravelRequest, TripPlan, PlaceSpot } from "./src/types/index.js";
+import {
+  isChatMessage,
+  isPlaceSpot,
+  isTripPlanDraft,
+} from "./src/lib/trip-plan.js";
+import { requireAuth, type AuthedRequest } from "./server/auth.js";
+import { insertTripLog } from "./server/trip-log-store.js";
+import { consumeCredit, refundCredit } from "./server/credits.js";
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
-// Lazy initializer for Gemini client
-let geminiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI | null {
-  if (!geminiClient && process.env.GEMINI_API_KEY) {
-    geminiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
-  }
-  return geminiClient;
-}
+// AI 제공자는 server/ai.ts가 AI_PROVIDER 환경변수와 키를 보고 고른다.
+// 아무 키도 없으면 null이고, 그때는 아래 큐레이션 샘플(데모 모드)로 빠진다.
 
 // Fallback high-quality Osaka 2N3D gourmet sample plan
 function createSampleOsakaPlan(request?: Partial<TravelRequest>): TripPlan {
@@ -710,8 +713,46 @@ function createSampleOsakaPlan(request?: Partial<TravelRequest>): TripPlan {
   };
 }
 
+/**
+ * 만들어낸 일정을 여행 로그에 남기고 응답한다.
+ *
+ * 응답 전에 저장하므로, 사용자가 결과를 받는 순간 이미 기록도 끝나 있다.
+ * 저장에 실패하면 log만 null로 내려보낸다 — 일정 자체는 유효하니 화면에는 띄워야 한다.
+ */
+async function respondWithPlan(
+  req: Request,
+  res: Response,
+  travelReq: TravelRequest,
+  plan: TripPlan,
+  creditsRemaining: number | null,
+) {
+  const auth = (req as AuthedRequest).auth;
+  const log = auth
+    ? await insertTripLog(auth.token, auth.userId, travelReq, plan)
+    : null;
+
+  res.json({ plan, log, creditsRemaining });
+}
+
+/**
+ * API 키가 없을 때만 쓰는 데모 응답.
+ *
+ * AI가 만든 게 아니므로 로그에 남기지 않는다. 남기면 나중에 목록에서
+ * 진짜 생성물과 구분할 방법이 없다.
+ */
+function respondWithDemoPlan(
+  res: Response,
+  travelReq: TravelRequest,
+  plan: TripPlan,
+) {
+  res.json({ plan, log: null, isDemo: true });
+}
+
 // Generate Itinerary Endpoint
-app.post("/api/generate-itinerary", async (req, res) => {
+app.post("/api/generate-itinerary", requireAuth, async (req, res) => {
+  // catch에서도 봐야 하므로 try 밖에 둔다. 차감했는데 실패하면 돌려줘야 한다.
+  let creditConsumed = false;
+
   try {
     const travelReq: TravelRequest = req.body;
 
@@ -720,23 +761,34 @@ app.post("/api/generate-itinerary", async (req, res) => {
         .status(400)
         .json({ error: "여행 목적지(destination)를 입력해주세요." });
     }
-    const ai = getGeminiClient();
+    const ai = getAiProvider();
 
-    console.log(
-      "Gemini client:",
-      ai ? "ready" : "missing GEMINI_API_KEY (check .env is loaded)",
-    );
-    // If Gemini client not available, fallback to customized sample
+    // 키가 아예 없으면 데모 모드. 화면은 돌아가되 로그에는 남기지 않는다.
     if (!ai) {
-      console.log(
-        "No GEMINI_API_KEY available, returning curated smart template",
-      );
-      const fallbackPlan = createSampleOsakaPlan(travelReq);
-      fallbackPlan.request = travelReq;
-      fallbackPlan.destinationName = travelReq.destination;
-      fallbackPlan.tripTitle = `${travelReq.destination} ${travelReq.durationNights}박 ${travelReq.durationDays}일 맞춤 여행 일정`;
-      return res.json(fallbackPlan);
+      console.log("No AI provider configured, returning curated sample (demo mode)");
+      const demoPlan = createSampleOsakaPlan(travelReq);
+      demoPlan.request = travelReq;
+      demoPlan.destinationName = travelReq.destination;
+      demoPlan.tripTitle = `${travelReq.destination} ${travelReq.durationNights}박 ${travelReq.durationDays}일 맞춤 여행 일정`;
+      return respondWithDemoPlan(res, travelReq, demoPlan);
     }
+
+    // AI를 부르기 전에 차감한다. 부르고 나서 차감하면 응답 도중 사용자가
+    // 창을 닫았을 때 원가만 나가고 과금은 못 한다.
+    const auth = (req as AuthedRequest).auth!;
+    const credit = await consumeCredit(auth.userId);
+
+    if (!credit.ok && credit.reason === "insufficient") {
+      return res.status(402).json({
+        error:
+          "크레딧이 모두 소진되었습니다. 일정 1건 생성에 1크레딧이 필요합니다.",
+        creditsRemaining: 0,
+      });
+    }
+    // unavailable(크레딧 DB 장애)은 통과시킨다. 과금은 못 하지만
+    // 크레딧 시스템 하나 때문에 서비스 전체가 멈추는 편이 더 나쁘다.
+    creditConsumed = credit.ok;
+    const creditsRemaining = credit.ok ? credit.remaining : null;
 
     const systemInstruction = `당신은 전 세계 여행 동선 최적화 전문가이자 최고의 현지 미식(식도락) 큐레이터입니다.
 사용자가 입력한 목적지, 일정(N박 N일), 총 예산, 선호 테마, 동행자, 이동 스타일 등을 바탕으로 실제 여행자가 100% 만족할 수 있는 구체적이고 정교한 여행 일정(JSON 형식)을 생성합니다.
@@ -843,56 +895,66 @@ app.post("/api/generate-itinerary", async (req, res) => {
   }
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: prompt,
-      config: {
-        systemInstruction,
-        temperature: 0.7,
-        responseMimeType: "application/json",
-      },
+    // 3일치 일정 JSON은 출력이 길다. 스트리밍으로 받아 HTTP 타임아웃을 피한다.
+    const parsedPlan = await ai.generateJson({
+      system: systemInstruction,
+      prompt,
+      schema: tripPlanDraftSchema as unknown as Record<string, unknown>,
+      effort: "high",
+      maxTokens: 64000,
     });
 
-    const responseText = response.text;
-    if (!responseText) {
-      throw new Error("Gemini API returned an empty response.");
-    }
-
-    let parsedPlan: any;
-    try {
-      parsedPlan = JSON.parse(responseText);
-    } catch (parseErr) {
-      console.error("JSON parse error from Gemini:", parseErr, responseText);
-      // Clean up markdown codeblocks if any
-      const cleaned = responseText
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      parsedPlan = JSON.parse(cleaned);
+    // Claude는 구조화 출력이 모양을 보장하지만 Gemini는 아니다. 한 번 더 확인한다.
+    if (!isTripPlanDraft(parsedPlan)) {
+      throw new Error("AI가 일정 형식에 맞지 않는 응답을 반환했습니다.");
     }
 
     const fullPlan: TripPlan = {
+      // 화면 렌더링용 id. 실제 식별자는 trip_logs가 발급하는 uuid다.
       id: "trip-" + Date.now(),
       createdAt: new Date().toISOString(),
       request: travelReq,
       ...parsedPlan,
     };
 
-    res.json(fullPlan);
-  } catch (error: any) {
+    await respondWithPlan(req, res, travelReq, fullPlan, creditsRemaining);
+  } catch (error: unknown) {
+    // 예전에는 여기서 오사카 샘플을 돌려줬다. 그러면 크레딧 부족이든 과부하든
+    // 전부 "성공"처럼 보이고, 가짜 일정이 로그에 쌓인다. 실패는 실패라고 알린다.
     console.error("Error generating itinerary:", error);
-    // Graceful fallback if Gemini fails
-    const sample = createSampleOsakaPlan(req.body);
-    res.json(sample);
+
+    // 결과를 못 줬으면 크레딧도 받지 않는다.
+    // Gemini 503이나 JSON 깨짐은 실제로 일어나는 일이라 이게 없으면
+    // 사용자는 일정 없이 크레딧만 잃는다.
+    const auth = (req as AuthedRequest).auth;
+    if (creditConsumed && auth) {
+      await refundCredit(auth.userId);
+    }
+
+    res.status(502).json({
+      error: describeAiError(
+        error,
+        "여행 일정을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      ),
+    });
   }
 });
 
 // Regenerate single spot endpoint
-app.post("/api/regenerate-spot", async (req, res) => {
+app.post("/api/regenerate-spot", requireAuth, async (req, res) => {
   try {
-    const { destination, dayNumber, currentSpot, userPreference } = req.body;
+    const { destination, dayNumber, currentSpot, userPreference } = req.body as {
+      destination?: string;
+      dayNumber?: number;
+      currentSpot?: PlaceSpot;
+      userPreference?: string;
+    };
 
-    const ai = getGeminiClient();
+    if (!currentSpot) {
+      return res.status(400).json({ error: "currentSpot is required" });
+    }
+
+    const ai = getAiProvider();
     if (!ai) {
       return res.json({
         ...currentSpot,
@@ -909,52 +971,61 @@ app.post("/api/regenerate-spot", async (req, res) => {
 
 기존 장소를 대체할 수 있는 동선상 완벽한 새로운 PlaceSpot JSON 객체를 단 하나만 반환해주세요. 위도, 경도 좌표와 추천 메뉴, 가격, 팁을 포함해야 합니다.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        systemInstruction:
-          "당신은 여행 전문가입니다. 요청에 부합하는 단일 PlaceSpot JSON 객체만 반환하세요.",
-      },
+    // 장소 하나만 바꾸면 되므로 effort를 낮춰 응답을 빠르게 받는다.
+    const parsedSpot = await ai.generateJson({
+      system:
+        "당신은 여행 전문가입니다. 요청에 부합하는 단일 PlaceSpot JSON 객체만 반환하세요.",
+      prompt,
+      schema: placeSpotSchema as unknown as Record<string, unknown>,
+      effort: "medium",
+      maxTokens: 8000,
     });
 
-    const text = response.text || "{}";
-    const newSpot = JSON.parse(
-      text
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim(),
-    );
-    newSpot.id = "spot-" + Date.now();
+    if (!isPlaceSpot(parsedSpot)) {
+      throw new Error("Claude API returned an invalid spot shape.");
+    }
+    const newSpot: PlaceSpot = {
+      ...parsedSpot,
+      id: "spot-" + Date.now(),
+    };
     res.json(newSpot);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error regenerating spot:", err);
-    res.status(500).json({ error: err.message || "Failed to regenerate spot" });
+    res.status(500).json({
+      error: describeAiError(err, "Failed to regenerate spot"),
+    });
   }
 });
 
 // Trip Assistant AI Chat endpoint
-app.post("/api/trip-chat", async (req, res) => {
+app.post("/api/trip-chat", requireAuth, async (req, res) => {
   try {
-    const { tripContext, message, chatHistory } = req.body;
+    const { tripContext, message, chatHistory } = req.body as {
+      tripContext?: TripPlan;
+      message?: string;
+      chatHistory?: unknown;
+    };
 
-    const ai = getGeminiClient();
+    const history = Array.isArray(chatHistory)
+      ? chatHistory.filter(isChatMessage)
+      : [];
+
+    const ai = getAiProvider();
     if (!ai) {
       return res.json({
         reply: `[안내] 문의주신 "${message}"에 대한 답변입니다: ${tripContext?.destinationName || "해당 여행지"}에서는 대중교통 패스 이용과 피크 시간대를 피한 식사 방문을 추천드립니다. 추가 문의사항이 있으시면 언제든 물어보세요!`,
       });
     }
 
-    const historyPrompt = chatHistory
-      ? chatHistory.map((m: any) => `${m.role}: ${m.content}`).join("\n")
-      : "";
+    const historyPrompt = history
+      .map((item) => `${item.role}: ${item.content}`)
+      .join("\n");
 
     const prompt = `현재 생성된 여행 일정 요약:
 - 여행지: ${tripContext?.destinationName} (${tripContext?.durationSummary})
 - 타이틀: ${tripContext?.tripTitle}
 - 하이라이트: ${tripContext?.highlights?.join(", ")}
-- 일자별 요약: ${tripContext?.days?.map((d: any) => `Day ${d.dayNumber}: ${d.themeTitle} (${d.summary})`).join(" | ")}
+- 일자별 요약: ${tripContext?.days?.map((day) => `Day ${day.dayNumber}: ${day.themeTitle} (${day.summary})`).join(" | ")}
 
 이전 대화 기록:
 ${historyPrompt}
@@ -963,21 +1034,21 @@ ${historyPrompt}
 
 위 일정과 여행지 정보를 바탕으로 친절하고 구체적이며 유용한 현지 가이드로서 한국어로 간결하게 답변해주세요.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: prompt,
-      config: {
-        systemInstruction:
-          "당신은 10년 경력의 현지 여행 가이드이자 친절한 컨시어지 AI입니다. 여행자의 일정과 질문에 맞추어 실용적인 팁과 정확한 정보를 안내하세요.",
-      },
+    // 대화형 Q&A는 짧고 빨라야 하므로 effort를 낮춘다.
+    const reply = await ai.generateText({
+      system:
+        "당신은 10년 경력의 현지 여행 가이드이자 친절한 컨시어지 AI입니다. 여행자의 일정과 질문에 맞추어 실용적인 팁과 정확한 정보를 안내하세요.",
+      prompt,
+      effort: "low",
+      maxTokens: 4000,
     });
 
-    res.json({ reply: response.text });
-  } catch (err: any) {
+    res.json({ reply });
+  } catch (err: unknown) {
     console.error("Error in trip chat:", err);
-    res
-      .status(500)
-      .json({ error: err.message || "Failed to generate chat response" });
+    res.status(500).json({
+      error: describeAiError(err, "Failed to generate chat response"),
+    });
   }
 });
 
@@ -1001,6 +1072,7 @@ async function startServer() {
     console.log(
       `AI Travel Route Planner Server running on http://0.0.0.0:${PORT}`,
     );
+    console.log(describeAiSelection());
   });
 }
 
