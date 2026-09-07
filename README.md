@@ -61,6 +61,32 @@ AI 호출은 **서버에서만** 합니다. API 키가 브라우저 번들에 �
 `ANTHROPIC_API_KEY`가 없으면 AI를 호출하지 않고 큐레이션된 샘플 일정을
 돌려주므로, 키 없이도 화면은 확인할 수 있습니다.
 
+## Vercel 배포
+
+로컬(`npm run dev` / `npm start`)은 그대로 Express가 프론트와 API를 같이 띄웁니다.
+Vercel에서는 Vite 정적 파일과 `/api/*` 서버리스 함수가 같은 핸들러를 사용합니다.
+
+프로젝트 루트를 Import한 뒤, 아래 환경변수를 Vercel Project Settings에 넣으세요.
+로컬 `.env`와 이름이 같아야 합니다.
+
+```
+GEMINI_API_KEY
+ANTHROPIC_API_KEY
+AI_PROVIDER
+
+SUPABASE_URL
+SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SECRET_KEY
+SUPABASE_JWKS_URL
+
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
+
+`VITE_` 두 개는 빌드 시 프론트에 들어갑니다. 나머지는 서버리스 함수 전용입니다.
+일정 생성은 시간이 걸릴 수 있어 API 타임아웃을 60초로 두었습니다. Hobby 플랜에서
+배포가 거절되면 Pro로 올리거나 `vercel.json`의 `maxDuration`을 낮추면 됩니다.
+
 ## 스크립트
 
 | 명령 | 설명 |
