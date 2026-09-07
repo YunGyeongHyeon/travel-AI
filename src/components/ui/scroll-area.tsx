@@ -14,9 +14,17 @@ function ScrollArea({
       className={cn("relative", className)}
       {...props}
     >
+      {/*
+        max-h-[inherit]가 핵심이다.
+        Root에 max-h-*를 주는 게 자연스러운 사용법인데, 스크롤이 실제로
+        일어나는 건 Viewport다. Viewport의 size-full(height:100%)은 Root의
+        height가 auto라 해석되지 않아, 내용이 길어지면 스크롤이 생기는 대신
+        그냥 밖으로 흘러나갔다. Root의 max-height를 물려받게 하면
+        Viewport가 그 높이에서 잘리고 스크롤이 생긴다.
+      */}
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        className="size-full max-h-[inherit] rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

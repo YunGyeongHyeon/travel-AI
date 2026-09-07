@@ -2,7 +2,14 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { TripPlan, PlaceSpot } from "@/types";
 import { InteractiveMap } from "./interactive-map";
-import { Sparkles, ChevronLeft, ChevronRight, ArrowUpRight } from "lucide-react";
+import { formatMinutes, getTripTransportStats } from "@/lib/trip-stats";
+import {
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpRight,
+  Footprints,
+} from "lucide-react";
 
 interface TripOverviewProps {
   trip: TripPlan;
@@ -27,6 +34,9 @@ export function TripOverview({ trip, onSelectSpot }: TripOverviewProps) {
     Math.round((totalCost / targetBudget) * 100),
   );
 
+  // 전 일정의 이동 구간 집계. 지어낸 효율 점수 대신 실제로 셀 수 있는 값만 쓴다.
+  const transport = getTripTransportStats(trip);
+
   const activeSpot = selectedSpotId
     ? (currentDay.spots.find((s) => s.id === selectedSpotId) ??
       currentDay.spots[0])
@@ -35,6 +45,15 @@ export function TripOverview({ trip, onSelectSpot }: TripOverviewProps) {
   const handleSelectSpot = (spot: PlaceSpot) => {
     setSelectedSpotId(spot.id);
     onSelectSpot?.(spot);
+  };
+
+  /**
+   * 지도 범례의 일차를 눌렀을 때. 핀과 아래 Day Timeline이 함께 바뀐다.
+   * 이전 날짜에서 고른 스팟은 새 날짜에 없으므로 선택을 비운다.
+   */
+  const handleSelectDay = (dayNumber: number) => {
+    setActiveDayNumber(dayNumber);
+    setSelectedSpotId(null);
   };
 
   const handlePrevDay = () => {
@@ -60,10 +79,16 @@ export function TripOverview({ trip, onSelectSpot }: TripOverviewProps) {
             activeDay={activeDayNumber}
             selectedSpotId={selectedSpotId}
             onSelectSpot={handleSelectSpot}
+            onSelectDay={handleSelectDay}
           />
         </div>
 
-        <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-white/70 flex justify-between items-center shadow-lg z-[400]">
+        {/*
+          지도가 isolate로 갇혔으므로 z-10이면 그 위에 뜬다.
+          예전의 z-[400]은 Leaflet과 겨루려던 값인데, 그 값이 루트 맥락으로
+          새어 나가 모달까지 덮었다.
+        */}
+        <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-3.5 sm:p-4 rounded-2xl border border-white/70 flex justify-between items-center shadow-lg z-10">
           <div className="flex items-center space-x-3 overflow-hidden">
             <div className="bg-slate-900 text-white w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0">
               D{currentDay.dayNumber}
@@ -95,32 +120,50 @@ export function TripOverview({ trip, onSelectSpot }: TripOverviewProps) {
 
       <div className="col-span-12 sm:col-span-6 lg:col-span-4 bg-indigo-600 rounded-[32px] p-6 text-white flex flex-col justify-between shadow-xl shadow-indigo-100 min-h-[220px]">
         <div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <p className="text-indigo-100 text-xs sm:text-sm font-semibold opacity-90">
-              Efficiency Score (동선 최적화)
+              전체 이동 시간
             </p>
-            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+            <div className="w-6 h-6 shrink-0 rounded-full bg-white/20 flex items-center justify-center">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             </div>
           </div>
           <p className="text-4xl sm:text-5xl font-black mt-2 tracking-tight">
-            98.4%
+            {transport.legCount > 0 ? formatMinutes(transport.totalMinutes) : "—"}
           </p>
         </div>
 
-        <div className="flex items-end justify-between pt-4 border-t border-white/15">
-          <p className="text-xs leading-relaxed opacity-90">
-            인접 구역 순차 배치로
-            <br />
-            이동 시간 45% 단축 완료
-          </p>
-          <svg
-            className="w-8 h-8 opacity-40"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-          </svg>
+        {/*
+          예전에는 여기에 "98.4%"와 "이동 시간 45% 단축"이 박혀 있었다.
+          퍼센트를 내려면 최적화 전 동선이라는 비교 기준이 필요한데 그런 데이터가
+          없어서 어떤 일정을 열어도 같은 숫자가 나왔다. 실제로 셀 수 있는 것만 남긴다.
+        */}
+        <div className="pt-4 border-t border-white/15">
+          {transport.legCount > 0 ? (
+            <div className="flex items-end justify-between gap-3">
+              <div className="space-y-1 text-xs opacity-90">
+                <p>
+                  이동 {transport.legCount}구간 · 교통비 ₩
+                  {transport.totalCost.toLocaleString()}
+                </p>
+                <p className="flex items-center gap-1">
+                  <Footprints className="w-3.5 h-3.5 shrink-0" />
+                  도보 {transport.walkLegs}구간
+                </p>
+              </div>
+              <svg
+                className="w-8 h-8 shrink-0 opacity-40"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+              </svg>
+            </div>
+          ) : (
+            <p className="text-xs leading-relaxed opacity-75">
+              이 일정에는 구간별 이동 정보가 없습니다
+            </p>
+          )}
         </div>
       </div>
 

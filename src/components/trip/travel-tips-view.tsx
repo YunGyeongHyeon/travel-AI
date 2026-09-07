@@ -23,8 +23,9 @@ export const TravelTipsView: React.FC<TravelTipsViewProps> = ({ trip }) => {
           <Compass className="w-4 h-4 text-indigo-400" />
           <span>Geographic Route Analytics</span>
         </div>
+        {/* "동선 낭비 0%"는 근거 없는 수치였다. 아래 설명은 AI가 실제로 써준 내용이다. */}
         <h3 className="text-xl sm:text-2xl font-bold text-white">
-          동선 낭비 0%를 위한 맞춤 설계 비결 🗺️
+          이 동선을 이렇게 짠 이유 🗺️
         </h3>
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-3xl">
           {trip.routeOptimizationExplanation ||

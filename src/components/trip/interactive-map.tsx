@@ -9,6 +9,8 @@ interface InteractiveMapProps {
   activeDay: number | "all";
   selectedSpotId: string | null;
   onSelectSpot: (spot: PlaceSpot) => void;
+  /** 넘기면 범례의 일차 항목이 눌러서 날짜를 바꾸는 버튼이 된다. */
+  onSelectDay?: (dayNumber: number) => void;
 }
 
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({
@@ -16,11 +18,22 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   activeDay,
   selectedSpotId,
   onSelectSpot,
+  onSelectDay,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
   const polylineLayerRef = useRef<L.LayerGroup | null>(null);
+
+  /*
+    마커는 trip/activeDay가 바뀔 때만 다시 만든다(선택할 때마다 재생성하면
+    지도가 다시 맞춰지며 튄다). 그러면 클릭 핸들러가 처음 렌더의 onSelectSpot을
+    붙든 채 굳어버리므로, ref로 항상 최신 함수를 가리키게 한다.
+  */
+  const onSelectSpotRef = useRef(onSelectSpot);
+  useEffect(() => {
+    onSelectSpotRef.current = onSelectSpot;
+  }, [onSelectSpot]);
 
   // Initialize Map
   useEffect(() => {
@@ -99,7 +112,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       dayGroups[dayNumber].push(latLng);
 
       const dayColor = DAY_MARKER_COLORS[(dayNumber - 1) % DAY_MARKER_COLORS.length];
-      const isSelected = spot.id === selectedSpotId;
 
       // Category icon emoji
       let categoryEmoji = "📍";
@@ -110,14 +122,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       else if (spot.category === "night") categoryEmoji = "🍸";
       else if (spot.category === "transport") categoryEmoji = "🚆";
 
+      /*
+        선택 강조는 여기서 만들지 않는다. 마커를 다시 만들지 않고
+        아래 선택 효과에서 클래스만 토글한다(스타일은 index.css의 .spot-pin-selected).
+      */
       const markerHtml = `
-        <div class="relative group cursor-pointer transition-transform duration-200 ${
-          isSelected ? "scale-125 z-50" : "hover:scale-110"
-        }">
-          <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white"
-               style="background-color: ${dayColor}; ${
-                 isSelected ? "box-shadow: 0 0 0 4px #fbbf24, 0 8px 16px rgba(0,0,0,0.3);" : ""
-               }">
+        <div class="pin-root relative group cursor-pointer transition-transform duration-200 hover:scale-110">
+          <div class="pin-body w-9 h-9 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white"
+               style="background-color: ${dayColor};">
             <span class="text-xs">${stepNumber}</span>
           </div>
           <div class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 text-[10px] shadow border border-slate-200">
@@ -170,7 +182,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       marker.bindPopup(popupContent, { maxWidth: 280 });
       marker.on("click", () => {
-        onSelectSpot(spot);
+        onSelectSpotRef.current(spot);
       });
 
       markersRef.current[spot.id] = marker;
@@ -206,41 +218,85 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     return () => window.clearTimeout(resizeTimer);
   }, [trip, activeDay]);
 
-  // Center on selected spot
+  // 선택 반영: 마커를 다시 만들지 않고 강조 클래스만 갈아끼운다.
   useEffect(() => {
+    Object.entries(markersRef.current).forEach(([spotId, marker]) => {
+      marker
+        .getElement()
+        ?.classList.toggle("spot-pin-selected", spotId === selectedSpotId);
+    });
+
     if (!selectedSpotId || !mapInstanceRef.current) return;
     const marker = markersRef.current[selectedSpotId];
     if (marker) {
-      const latLng = marker.getLatLng();
-      mapInstanceRef.current.setView(latLng, 15, { animate: true });
+      mapInstanceRef.current.setView(marker.getLatLng(), 15, { animate: true });
       marker.openPopup();
     }
-  }, [selectedSpotId]);
+  }, [selectedSpotId, activeDay, trip]);
 
   return (
-    <div className="relative w-full h-full min-h-[420px] rounded-2xl overflow-hidden shadow-inner border border-slate-200/80 bg-slate-100">
+    /*
+      isolate(= isolation: isolate)가 핵심이다.
+      Leaflet은 내부 요소에 z-index를 200~1000까지 직접 박아둔다
+      (.leaflet-pane 400, .leaflet-popup-pane 700, 지도 컨트롤 1000).
+      position: relative만으로는 새 쌓임 맥락이 생기지 않아서, 그 값들이
+      루트 맥락으로 새어 나와 모달(z-50)보다 위에 그려졌다.
+      isolate로 맥락을 가두면 지도 내부 값이 아무리 커도 이 상자 안에서만 겨룬다.
+    */
+    <div className="relative isolate w-full h-full min-h-[420px] rounded-2xl overflow-hidden shadow-inner border border-slate-200/80 bg-slate-100">
       <div ref={mapContainerRef} className="w-full h-full min-h-[420px] z-10" />
 
       {/* Map Legend Floating Tag */}
       <div className="absolute top-3 right-3 z-[400] bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl shadow-md border border-slate-200 text-xs flex items-center gap-3">
         <span className="font-semibold text-slate-700">일차별 동선:</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {trip.days.map((day, idx) => {
             const color = DAY_MARKER_COLORS[idx % DAY_MARKER_COLORS.length];
             const isVisible = activeDay === "all" || activeDay === day.dayNumber;
-            return (
-              <div
-                key={day.dayNumber}
-                className={`flex items-center gap-1 transition-opacity ${
-                  isVisible ? "opacity-100" : "opacity-30"
-                }`}
-              >
+
+            const inner = (
+              <>
                 <span
-                  className="w-2.5 h-2.5 rounded-full inline-block"
+                  className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <span className="text-slate-600 font-medium">{day.dayNumber}일차</span>
-              </div>
+                <span className="text-slate-600 font-medium whitespace-nowrap">
+                  {day.dayNumber}일차
+                </span>
+              </>
+            );
+
+            // onSelectDay가 없으면 예전처럼 그냥 범례로만 둔다.
+            if (!onSelectDay) {
+              return (
+                <div
+                  key={day.dayNumber}
+                  className={`flex items-center gap-1 transition-opacity ${
+                    isVisible ? "opacity-100" : "opacity-30"
+                  }`}
+                >
+                  {inner}
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={day.dayNumber}
+                type="button"
+                onClick={() => onSelectDay(day.dayNumber)}
+                aria-pressed={activeDay === day.dayNumber}
+                title={`${day.dayNumber}일차 동선만 보기`}
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 transition-all cursor-pointer hover:bg-slate-100 ${
+                  isVisible ? "opacity-100" : "opacity-40 hover:opacity-100"
+                } ${
+                  activeDay === day.dayNumber
+                    ? "bg-slate-100 ring-1 ring-slate-300"
+                    : ""
+                }`}
+              >
+                {inner}
+              </button>
             );
           })}
         </div>

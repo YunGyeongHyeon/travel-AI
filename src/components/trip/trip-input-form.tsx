@@ -12,7 +12,7 @@ import {
   PACE_CONFIG,
   TRANSPORT_CONFIG,
 } from "@/lib/formatters";
-import { PRESET_OPTIONS, PresetOption } from "@/data/sample-trips";
+import { PRESET_OPTIONS } from "@/data/sample-trips";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,6 @@ import {
 interface TripInputFormProps {
   isLoading: boolean;
   onSubmit: (request: TravelRequest) => void;
-  onSelectPreset: (preset: PresetOption) => void;
 }
 
 const POPULAR_DESTINATIONS = [
@@ -55,7 +54,6 @@ const BUDGET_PRESETS = [500000, 800000, 1000000, 1500000, 2000000, 3000000];
 export const TripInputForm: React.FC<TripInputFormProps> = ({
   isLoading,
   onSubmit,
-  onSelectPreset,
 }) => {
   const [destination, setDestination] = useState("");
   const [durationNights, setDurationNights] = useState(2);
@@ -127,6 +125,8 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
             return (
               <button
                 key={p.id}
+                // type="button"이어야 form을 제출하지 않는다.
+                // 프리셋은 조건을 채워줄 뿐, 생성은 아래 제출 버튼의 몫이다.
                 type="button"
                 onClick={() => {
                   setDestination(p.request.destination);
@@ -138,7 +138,6 @@ export const TripInputForm: React.FC<TripInputFormProps> = ({
                   setPace(p.request.pace);
                   setTransportPreference(p.request.transportPreference);
                   setSpecialRequests(p.request.specialRequests || "");
-                  onSelectPreset(p);
                 }}
                 className={`p-3 text-left rounded-2xl border transition-all relative overflow-hidden cursor-pointer ${
                   isSelected

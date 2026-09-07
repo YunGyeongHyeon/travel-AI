@@ -21,6 +21,7 @@ function AppLayout() {
     logs,
     credits,
     favoriteCount,
+    isLoading,
     isLogsLoading,
     error,
     canRetryGenerate,
@@ -44,6 +45,10 @@ function AppLayout() {
 
   return (
     <AppShell
+      // 생성 중에는 조건이 바뀌면 안 된다. 화면 전체를 잠근다.
+      blockingMessage={
+        isLoading ? "AI가 최적 동선과 맛집을 설계하고 있습니다" : null
+      }
       header={
         <Navbar
           logCount={logs.length}

@@ -48,25 +48,28 @@ function TripLogRow({
       <button
         type="button"
         onClick={onOpenLog}
-        className="flex-1 text-left cursor-pointer"
+        title={log.tripTitle}
+        className="min-w-0 flex-1 text-left cursor-pointer"
       >
-        <div className="flex items-center gap-2 mb-1">
-          <Badge variant="secondary">{log.destinationName}</Badge>
-          <span className="text-xs text-slate-500 font-medium">
+        <div className="flex items-center gap-2 mb-1 min-w-0">
+          <Badge variant="secondary" className="max-w-[10rem] truncate">
+            {log.destinationName}
+          </Badge>
+          <span className="text-xs text-slate-500 font-medium whitespace-nowrap">
             {log.durationSummary}
           </span>
         </div>
         <h4 className="font-extrabold text-sm text-slate-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
           {log.tripTitle}
         </h4>
-        <div className="text-[11px] text-slate-400 mt-0.5">
+        <div className="text-[11px] text-slate-400 mt-0.5 truncate">
           예산: ₩{log.targetBudget.toLocaleString()} •{" "}
           {new Date(log.createdAt).toLocaleString()}
         </div>
       </button>
 
       {isPendingDelete ? (
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="destructive"
             size="sm"
@@ -80,7 +83,7 @@ function TripLogRow({
           </Button>
         </div>
       ) : (
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -151,9 +154,15 @@ export function TripLogsModal({
 
   const favorites = logs.filter((log) => log.isFavorite);
 
+  /*
+    목록은 화면 높이의 절반까지만 차지하고, 그 이상은 내부 스크롤로 넘긴다.
+    dvh를 쓰는 이유는 모바일 주소창이 접혔다 펴져도 기준이 흔들리지 않게 하려는 것.
+    (ScrollArea가 Root의 max-height를 Viewport에 물려주도록 고쳐둔 덕에
+     이 한 줄로 실제 스크롤이 생긴다 — ui/scroll-area.tsx 주석 참고)
+  */
   const renderList = (items: TripLogSummary[], empty: React.ReactNode) => (
-    <ScrollArea className="max-h-80">
-      <div className="space-y-3 pr-1">
+    <ScrollArea className="max-h-[50dvh]">
+      <div className="space-y-3 pr-3">
         {items.length === 0
           ? empty
           : items.map((log) => (
@@ -177,8 +186,8 @@ export function TripLogsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg rounded-3xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg rounded-3xl flex max-h-[85dvh] flex-col">
+        <DialogHeader className="shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
               <History className="w-4 h-4" />
@@ -198,15 +207,15 @@ export function TripLogsModal({
             <p>여행 로그를 불러오는 중입니다...</p>
           </div>
         ) : (
-          <Tabs defaultValue="all">
-            <TabsList>
+          <Tabs defaultValue="all" className="flex min-h-0 flex-col">
+            <TabsList className="shrink-0">
               <TabsTrigger value="all">전체 ({logs.length})</TabsTrigger>
               <TabsTrigger value="favorite">
                 즐겨찾기 ({favorites.length})
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="all">
+            <TabsContent value="all" className="min-h-0">
               {renderList(
                 logs,
                 <EmptyState
@@ -216,7 +225,7 @@ export function TripLogsModal({
               )}
             </TabsContent>
 
-            <TabsContent value="favorite">
+            <TabsContent value="favorite" className="min-h-0">
               {renderList(
                 favorites,
                 <EmptyState
@@ -228,7 +237,7 @@ export function TripLogsModal({
           </Tabs>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="secondary" size="sm" onClick={onClose}>
             닫기
           </Button>

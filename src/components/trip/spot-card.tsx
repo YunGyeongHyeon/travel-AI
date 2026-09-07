@@ -78,7 +78,11 @@ export const SpotCard: React.FC<SpotCardProps> = ({
   };
 
   return (
-    <div className="relative group">
+    /*
+      id: 지도 핀을 클릭했을 때 이 카드로 스크롤하기 위한 앵커.
+      scroll-mt-28: 상단 네비게이션(sticky, 80px)이 카드를 가리지 않도록 여백을 준다.
+    */
+    <div id={`spot-${spot.id}`} className="relative group scroll-mt-28">
       {/* Main Spot Card */}
       <div
         onClick={onSelect}

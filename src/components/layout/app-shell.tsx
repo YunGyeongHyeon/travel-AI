@@ -6,9 +6,66 @@ type AppShellProps = {
   header: ReactNode;
   children: ReactNode;
   chatAction?: ReactNode;
+  /** 일정 생성 중처럼 화면 전체를 잠가야 할 때. */
+  blockingMessage?: string | null;
 };
 
-export function AppShell({ header, children, chatAction }: AppShellProps) {
+export function AppShell({
+  header,
+  children,
+  chatAction,
+  blockingMessage,
+}: AppShellProps) {
+  const isBlocked = Boolean(blockingMessage);
+
+  return (
+    <>
+      {/*
+        inert는 클릭뿐 아니라 포커스·탭 이동·스크린리더 접근까지 막는다.
+        오버레이만 덮으면 Tab으로 뒤쪽 버튼에 닿아 조작이 된다.
+      */}
+      <div inert={isBlocked} aria-busy={isBlocked}>
+        <AppShellContent header={header} chatAction={chatAction}>
+          {children}
+        </AppShellContent>
+      </div>
+
+      {isBlocked && <BlockingOverlay message={blockingMessage!} />}
+    </>
+  );
+}
+
+/**
+ * 화면 전체를 덮는 진행 표시.
+ * 모달(z-50)보다 위에 둔다 — 생성 중에는 모달도 만지면 안 된다.
+ */
+function BlockingOverlay({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-6"
+    >
+      <div className="w-full max-w-sm rounded-[28px] bg-white p-7 text-center shadow-2xl">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-indigo-50">
+          <div className="size-7 animate-spin rounded-full border-[3px] border-indigo-200 border-t-indigo-600" />
+        </div>
+        <p className="text-sm font-bold text-slate-900">{message}</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+          동선과 맛집을 함께 계산하느라 1분 남짓 걸릴 수 있습니다.
+          <br />
+          창을 닫지 말고 잠시만 기다려 주세요.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function AppShellContent({
+  header,
+  children,
+  chatAction,
+}: Omit<AppShellProps, "blockingMessage">) {
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-slate-900 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
       {header}

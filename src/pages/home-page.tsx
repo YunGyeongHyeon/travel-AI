@@ -35,13 +35,15 @@ export function HomePage() {
         </p>
       </div>
 
+      {/*
+        프리셋은 폼을 채우기만 한다. 생성은 아래 제출 버튼에서만 일어난다.
+        예전에는 프리셋 클릭이 곧바로 생성으로 이어져, 조건을 훑어보려고
+        눌렀을 뿐인데 크레딧이 빠져나갔다.
+      */}
       <TripInputForm
         isLoading={isLoading}
         onSubmit={(request) => {
           void handleGenerate(request);
-        }}
-        onSelectPreset={(preset) => {
-          void handleGenerate(preset.request);
         }}
       />
     </div>
