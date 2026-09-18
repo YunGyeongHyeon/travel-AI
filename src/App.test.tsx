@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import App from "@/App";
 import { createMockTrip } from "@/test/fixtures";
 
@@ -116,7 +117,7 @@ describe("App routes", () => {
     expect(screen.getByRole("link", { name: "상세 일정" })).toBeInTheDocument();
   });
 
-  it("로그인하면 상단에 여행 로그 버튼과 계정이 보인다", async () => {
+  it("로그인하면 상단에 여행 로그 버튼과 계정 메뉴가 보인다", async () => {
     signIn();
     window.history.pushState({}, "", "/");
     render(<App />);
@@ -127,18 +128,36 @@ describe("App routes", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByText("traveler@example.com")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "로그아웃" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "계정 메뉴" })).toBeInTheDocument();
   });
 
-  it("크레딧 잔액을 상단에 보여준다", async () => {
+  it("로그아웃과 크레딧은 헤더에 늘어놓지 않고 계정 메뉴 안에 둔다", async () => {
     signIn();
     window.history.pushState({}, "", "/");
     render(<App />);
 
     await waitFor(() => {
       expect(
-        screen.getByTitle("남은 크레딧 3개 — 일정 1건 생성에 1개 필요"),
+        screen.getByRole("button", { name: "계정 메뉴" }),
       ).toBeInTheDocument();
     });
+
+    // 메뉴를 열기 전에는 헤더에 노출되지 않는다.
+    expect(screen.queryByRole("menuitem", { name: "로그아웃" })).toBeNull();
+    expect(
+      screen.queryByTitle("남은 크레딧 3개 — 일정 1건 생성에 1개 필요"),
+    ).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "계정 메뉴" }));
+
+    expect(
+      await screen.findByRole("menuitem", { name: "개인정보 관리" }),
+    ).toHaveAttribute("href", "/account");
+    expect(
+      screen.getByRole("menuitem", { name: "로그아웃" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTitle("남은 크레딧 3개 — 일정 1건 생성에 1개 필요"),
+    ).toBeInTheDocument();
   });
 });

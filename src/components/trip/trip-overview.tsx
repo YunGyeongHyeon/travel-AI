@@ -1,7 +1,8 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import { TripPlan, PlaceSpot } from "@/types";
 import { InteractiveMap } from "./interactive-map";
+import { TodayCoreRouteCard } from "./today-core-route-card";
 import { formatMinutes, getTripTransportStats } from "@/lib/trip-stats";
 import {
   Sparkles,
@@ -72,6 +73,12 @@ export function TripOverview({ trip, onSelectSpot }: TripOverviewProps) {
 
   return (
     <div className="grid grid-cols-12 gap-5 items-stretch">
+      <TodayCoreRouteCard
+        day={currentDay}
+        onMore={() => {
+          /* Day timeline is below — scroll into view via schedule link if needed */
+        }}
+      />
       <div className="col-span-12 lg:col-span-8 bg-white rounded-[32px] border border-slate-200 shadow-sm relative overflow-hidden flex flex-col min-h-[440px] lg:min-h-[500px]">
         <div className="flex-1 relative w-full h-full min-h-[360px]">
           <InteractiveMap

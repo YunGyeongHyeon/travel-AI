@@ -185,3 +185,17 @@ export interface GenerateItineraryResult {
   /** 차감 후 남은 크레딧. 크레딧을 아직 도입하지 않았으면 null. */
   creditsRemaining?: number | null;
 }
+
+// 크레딧 원장 한 줄. 잔액(user_credits.balance)은 이 행들의 합이다.
+// amount는 부호가 있는 값이다 — 충전/환불은 양수, 사용은 음수.
+export interface CreditTransaction {
+  id: string; // uuid (DB PK)
+  amount: number;
+  /** DB에 그대로 들어 있는 사유 코드. 표시용 문구는 describeCreditReason이 만든다. */
+  reason: string;
+  /** 어떤 일정 생성에 쓰였는지. 지금은 서버가 채우지 않아 대부분 null이다. */
+  tripLogId: string | null;
+  /** 결제 붙인 뒤 충전 건을 결제 건과 잇는 열쇠. */
+  paymentId: string | null;
+  createdAt: string;
+}

@@ -2,6 +2,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import type { ChatMessage, TripPlan } from "@/types";
 import { sendTripChat } from "@/lib/api";
+import {
+  renderSimpleMarkdown,
+  stripIncompleteMarkdown,
+} from "@/lib/safe-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,13 +24,59 @@ interface TripChatDrawerProps {
   trip: TripPlan;
 }
 
+function AssistantBubble({
+  content,
+  timestamp,
+  streaming,
+}: {
+  content: string;
+  timestamp?: string;
+  streaming?: boolean;
+}) {
+  const safe = stripIncompleteMarkdown(content, Boolean(streaming));
+  const html = streaming
+    ? renderSimpleMarkdown(safe)
+    : renderSimpleMarkdown(content);
+
+  // Guard: never paint raw markdown markers mid-stream
+  const looksRaw =
+    Boolean(streaming) &&
+    (/###/.test(safe) || /\*\*[^*]/.test(safe.slice(-8)) || /(?:^|\n)---$/.test(safe));
+
+  return (
+    <div className="max-w-[85%] p-3.5 rounded-2xl leading-relaxed bg-white text-slate-800 border border-slate-200 rounded-tl-xs">
+      {streaming && !content.trim() ? (
+        <div className="space-y-2" aria-label="응답 작성 중">
+          <span className="inline-flex mb-2 px-2 py-0.5 rounded-full bg-violet-50 text-[10px] font-bold text-[#6B4EFF]">
+            응답 작성 중
+          </span>
+          <div className="h-2.5 w-[90%] rounded bg-slate-100 animate-pulse" />
+          <div className="h-2.5 w-[70%] rounded bg-slate-100 animate-pulse" />
+          <div className="h-2.5 w-[50%] rounded bg-slate-100 animate-pulse" />
+        </div>
+      ) : looksRaw ? (
+        <p className="whitespace-pre-wrap text-xs sm:text-sm">{safe.replace(/[#*_`]/g, "")}</p>
+      ) : (
+        <div
+          className="text-xs sm:text-sm prose-chat"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      )}
+      {timestamp && (
+        <span className="block text-[10px] mt-1 text-right text-slate-400">
+          {timestamp}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function TripChatDrawer({ isOpen, onClose, trip }: TripChatDrawerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "assistant",
-      content: `안녕하세요! **${trip.destinationName} ${trip.durationSummary}** 여행 전담 AI 비서입니다. 
-일정에 대해 궁금한 점이나 맛집 변경, 비 오는 날 대안, 교통 패스 사용법 등 무엇이든 편하게 물어보세요!`,
+      content: `안녕하세요! **${trip.destinationName} ${trip.durationSummary}** 여행 전담 AI 비서입니다.\n일정에 대해 궁금한 점이나 맛집 변경, 비 오는 날 대안, 교통 패스 사용법 등 무엇이든 편하게 물어보세요!`,
       timestamp: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -35,11 +85,12 @@ export function TripChatDrawer({ isOpen, onClose, trip }: TripChatDrawerProps) {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [streamDraft, setStreamDraft] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamDraft, isLoading]);
 
   const handleSend = async (event: FormEvent) => {
     event.preventDefault();
@@ -59,6 +110,7 @@ export function TripChatDrawer({ isOpen, onClose, trip }: TripChatDrawerProps) {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
+    setStreamDraft("");
 
     try {
       const reply = await sendTripChat({
@@ -66,6 +118,15 @@ export function TripChatDrawer({ isOpen, onClose, trip }: TripChatDrawerProps) {
         message: userText,
         chatHistory: messages.slice(-6),
       });
+
+      // Progressive reveal without raw mid-stream tokens
+      const chunk = 12;
+      for (let i = 0; i < reply.length; i += chunk) {
+        const next = reply.slice(0, i + chunk);
+        setStreamDraft(next);
+        await new Promise((r) => setTimeout(r, 16));
+      }
+
       const assistantMsg: ChatMessage = {
         id: "ai-" + Date.now(),
         role: "assistant",
@@ -75,14 +136,16 @@ export function TripChatDrawer({ isOpen, onClose, trip }: TripChatDrawerProps) {
           minute: "2-digit",
         }),
       };
+      setStreamDraft(null);
       setMessages((prev) => [...prev, assistantMsg]);
     } catch {
+      setStreamDraft(null);
       setMessages((prev) => [
         ...prev,
         {
           id: "err-" + Date.now(),
           role: "assistant",
-          content: "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+          content: "답변을 가져오지 못했어요. 다시 물어봐 주세요.",
           timestamp: new Date().toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
@@ -137,18 +200,19 @@ export function TripChatDrawer({ isOpen, onClose, trip }: TripChatDrawerProps) {
                   </div>
                 )}
 
-                <div
-                  className={`max-w-[82%] p-3.5 rounded-2xl leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-slate-900 text-white rounded-tr-xs"
-                      : "bg-white text-slate-800 border border-slate-200 rounded-tl-xs"
-                  }`}
-                >
-                  {msg.content}
-                  <span className="block text-[10px] mt-1 text-right text-slate-400">
-                    {msg.timestamp}
-                  </span>
-                </div>
+                {msg.role === "assistant" ? (
+                  <AssistantBubble
+                    content={msg.content}
+                    timestamp={msg.timestamp}
+                  />
+                ) : (
+                  <div className="max-w-[85%] p-3.5 rounded-2xl leading-relaxed whitespace-pre-wrap bg-[#2D2468] text-white rounded-tr-xs">
+                    {msg.content}
+                    <span className="block text-[10px] mt-1 text-right text-white/60">
+                      {msg.timestamp}
+                    </span>
+                  </div>
+                )}
 
                 {msg.role === "user" && (
                   <div className="w-7 h-7 rounded-full bg-slate-700 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -159,11 +223,14 @@ export function TripChatDrawer({ isOpen, onClose, trip }: TripChatDrawerProps) {
             ))}
 
             {isLoading && (
-              <div className="flex gap-2.5 items-center text-slate-500 text-xs">
-                <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center">
+              <div className="flex gap-2.5 justify-start">
+                <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 </div>
-                <span>답변을 작성하고 있습니다...</span>
+                <AssistantBubble
+                  content={streamDraft ?? ""}
+                  streaming
+                />
               </div>
             )}
 

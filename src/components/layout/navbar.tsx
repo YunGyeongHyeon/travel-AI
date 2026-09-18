@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { Coins, History, LogOut, Plus, Map, Star } from "lucide-react";
+import { History, Plus, Map, Star } from "lucide-react";
 import { TripPlan } from "@/types";
 import { getTripThemeLabel } from "@/lib/formatters";
 import { Button } from "@/components/ui/button";
+import { AccountMenu } from "@/components/layout/account-menu";
 
 interface NavbarProps {
   logCount: number;
@@ -11,6 +12,7 @@ interface NavbarProps {
   hasActiveTrip: boolean;
   activeTrip?: TripPlan | null;
   userEmail?: string | null;
+  userName?: string | null;
   /** null이면 크레딧을 도입하지 않은 상태라 표시하지 않는다. */
   credits?: number | null;
   onSignOut: () => void;
@@ -23,6 +25,7 @@ export function Navbar({
   hasActiveTrip,
   activeTrip,
   userEmail,
+  userName,
   credits,
   onSignOut,
 }: NavbarProps) {
@@ -116,21 +119,6 @@ export function Navbar({
 
           {userEmail && (
             <>
-              {credits !== null && credits !== undefined && (
-                <div
-                  title={`남은 크레딧 ${credits}개 — 일정 1건 생성에 1개 필요`}
-                  className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 sm:px-3 py-2 text-xs font-bold border ${
-                    credits === 0
-                      ? "bg-rose-50 border-rose-200 text-rose-700"
-                      : "bg-emerald-50 border-emerald-200 text-emerald-700"
-                  }`}
-                >
-                  <Coins className="w-3.5 h-3.5 shrink-0" />
-                  <span>{credits}</span>
-                  <span className="hidden lg:inline font-semibold">크레딧</span>
-                </div>
-              )}
-
               <Button
                 variant="secondary"
                 onClick={onOpenLogs}
@@ -152,24 +140,16 @@ export function Navbar({
                 )}
               </Button>
 
-              <div className="flex shrink-0 items-center gap-1.5">
-                <span
-                  className="hidden xl:inline text-[11px] font-semibold text-slate-500 max-w-[8rem] 2xl:max-w-[12rem] truncate"
-                  title={userEmail}
-                >
-                  {userEmail}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={onSignOut}
-                  title="로그아웃"
-                  aria-label="로그아웃"
-                  className="shrink-0 text-slate-400 hover:text-rose-600"
-                >
-                  <LogOut />
-                </Button>
-              </div>
+              {/*
+                로그아웃·개인정보·크레딧을 이 메뉴 하나로 모았다.
+                좁은 화면에서는 이메일이 접히고 아바타만 남는다.
+              */}
+              <AccountMenu
+                email={userEmail}
+                name={userName}
+                credits={credits ?? null}
+                onSignOut={onSignOut}
+              />
             </>
           )}
         </div>

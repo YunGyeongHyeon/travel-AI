@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Loader2, LogIn, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Loader2, LogIn, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/auth-context";
 import { getErrorMessage } from "@/lib/errors";
 import { AlertBanner } from "@/components/alert-banner";
@@ -19,6 +19,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -67,6 +68,11 @@ export function LoginPage() {
         <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
           {isLogin ? "다시 오신 걸 환영합니다" : "여행 로그 시작하기"}
         </h2>
+        {isLogin && (
+          <p className="text-sm font-bold text-[#6B4EFF]">
+            여행 후기를 일정으로 바꿔주는 AI 플래너
+          </p>
+        )}
         <p className="text-xs sm:text-sm text-slate-600">
           {isLogin
             ? "일정을 만들고 언제든 다시 꺼내볼 수 있습니다."
@@ -117,22 +123,52 @@ export function LoginPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password">비밀번호</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="6자 이상"
-            autoComplete={isLogin ? "current-password" : "new-password"}
-            minLength={6}
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="6자 이상"
+              autoComplete={isLogin ? "current-password" : "new-password"}
+              minLength={6}
+              required
+              className="pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 표시"}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 flex size-8 items-center justify-center rounded-lg bg-[#F3F0FF] text-[#6B4EFF] cursor-pointer"
+            >
+              {showPassword ? (
+                <EyeOff className="size-4" />
+              ) : (
+                <Eye className="size-4" />
+              )}
+            </button>
+          </div>
+          {isLogin && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setNotice(
+                    "비밀번호 찾기는 준비 중이에요. 가입 시 쓴 이메일로 문의해 주세요.",
+                  )
+                }
+                className="text-xs font-semibold text-[#6B4EFF] hover:underline cursor-pointer"
+              >
+                비밀번호 찾기
+              </button>
+            </div>
+          )}
         </div>
 
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="w-full h-auto rounded-full px-4 py-2.5 text-xs font-bold"
+          className="w-full h-auto rounded-full px-4 py-2.5 text-xs font-bold bg-[#6B4EFF] hover:bg-[#5a3ee6]"
         >
           {isSubmitting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -151,7 +187,7 @@ export function LoginPage() {
               setError(null);
               setNotice(null);
             }}
-            className="font-bold text-indigo-600 hover:underline cursor-pointer"
+            className="font-bold text-[#6B4EFF] hover:underline cursor-pointer"
           >
             {isLogin ? "회원가입" : "로그인"}
           </button>

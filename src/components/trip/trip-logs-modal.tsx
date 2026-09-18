@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { History, Star, Trash2, ArrowRight, Loader2 } from "lucide-react";
+import { History, Star, Trash2, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import type { TripLogSummary } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,8 @@ interface TripLogsModalProps {
   onOpenLog: (logId: string) => void;
   onToggleFavorite: (logId: string) => void;
   onDeleteLog: (logId: string) => void;
+  /** 즐겨찾기 빈 상태 Primary CTA — 홈/플래너로 */
+  onCreatePlan?: () => void;
 }
 
 interface TripLogRowProps {
@@ -124,12 +126,33 @@ function TripLogRow({
   );
 }
 
-function EmptyState({ message, hint }: { message: string; hint: string }) {
+function EmptyState({
+  message,
+  hint,
+  primaryLabel,
+  onPrimary,
+}: {
+  message: string;
+  hint: string;
+  primaryLabel?: string;
+  onPrimary?: () => void;
+}) {
   return (
     <div className="py-12 text-center text-slate-400 text-xs">
       <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
-      <p>{message}</p>
+      <p className="font-bold text-slate-600">{message}</p>
       <p className="mt-0.5">{hint}</p>
+      {primaryLabel && onPrimary && (
+        <Button
+          type="button"
+          size="sm"
+          className="mt-4 rounded-full bg-[#6B4EFF] hover:bg-[#5a3ee6]"
+          onClick={onPrimary}
+        >
+          <Sparkles className="size-3.5" />
+          {primaryLabel}
+        </Button>
+      )}
     </div>
   );
 }
@@ -142,10 +165,10 @@ export function TripLogsModal({
   onOpenLog,
   onToggleFavorite,
   onDeleteLog,
+  onCreatePlan,
 }: TripLogsModalProps) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  // 모달을 닫으면 삭제 확인 상태도 초기화한다.
   useEffect(() => {
     if (!isOpen) {
       setPendingDeleteId(null);
@@ -154,12 +177,6 @@ export function TripLogsModal({
 
   const favorites = logs.filter((log) => log.isFavorite);
 
-  /*
-    목록은 화면 높이의 절반까지만 차지하고, 그 이상은 내부 스크롤로 넘긴다.
-    dvh를 쓰는 이유는 모바일 주소창이 접혔다 펴져도 기준이 흔들리지 않게 하려는 것.
-    (ScrollArea가 Root의 max-height를 Viewport에 물려주도록 고쳐둔 덕에
-     이 한 줄로 실제 스크롤이 생긴다 — ui/scroll-area.tsx 주석 참고)
-  */
   const renderList = (items: TripLogSummary[], empty: React.ReactNode) => (
     <ScrollArea className="max-h-[50dvh]">
       <div className="space-y-3 pr-3">
@@ -221,6 +238,11 @@ export function TripLogsModal({
                 <EmptyState
                   message="아직 생성한 여행 일정이 없습니다."
                   hint="조건을 입력해 첫 일정을 만들어보세요!"
+                  primaryLabel="일정 만들기"
+                  onPrimary={() => {
+                    onClose();
+                    onCreatePlan?.();
+                  }}
                 />,
               )}
             </TabsContent>
@@ -231,6 +253,11 @@ export function TripLogsModal({
                 <EmptyState
                   message="즐겨찾기한 일정이 없습니다."
                   hint="마음에 드는 일정의 별표를 눌러보세요!"
+                  primaryLabel="일정 만들기"
+                  onPrimary={() => {
+                    onClose();
+                    onCreatePlan?.();
+                  }}
                 />,
               )}
             </TabsContent>

@@ -4,8 +4,10 @@ import { TripInputForm } from "@/components/trip/trip-input-form";
 import { useTripPlannerContext } from "@/hooks/trip-planner-context";
 import type { TravelRequest } from "@/types";
 
+const GENERATION_CREDIT_COST = 1;
+
 export function HomePage() {
-  const { isLoading, generateItinerary } = useTripPlannerContext();
+  const { isLoading, generateItinerary, credits } = useTripPlannerContext();
   const navigate = useNavigate();
 
   const handleGenerate = async (request: TravelRequest) => {
@@ -33,13 +35,13 @@ export function HomePage() {
           생성한 일정은 자동으로 여행 로그에 남습니다. 언제든 다시 꺼내볼 수
           있어요.
         </p>
+        {credits !== null && credits !== undefined && (
+          <p className="inline-flex items-center rounded-full border border-orange-200 bg-[#FFF7ED] px-3 py-1 text-[11px] font-bold text-[#C2410C]">
+            예상 소모 {GENERATION_CREDIT_COST} 크레딧 · 잔여 {credits}
+          </p>
+        )}
       </div>
 
-      {/*
-        프리셋은 폼을 채우기만 한다. 생성은 아래 제출 버튼에서만 일어난다.
-        예전에는 프리셋 클릭이 곧바로 생성으로 이어져, 조건을 훑어보려고
-        눌렀을 뿐인데 크레딧이 빠져나갔다.
-      */}
       <TripInputForm
         isLoading={isLoading}
         onSubmit={(request) => {
